@@ -182,7 +182,9 @@ psql -h localhost -U nexus_user -d edit_business_db -f migrations/001_init_schem
 
 ## 部署
 
-详细部署步骤请参考 [DEPLOYMENT.md](./DEPLOYMENT.md)
+**📋 部署前检查**: [DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md) - 部署前30秒快速核对
+**📖 部署说明**: [DEPLOYMENT.md](./DEPLOYMENT.md) - 详细部署步骤
+**🔧 脚本使用**: [scripts/README.md](./scripts/README.md) - 部署脚本说明
 
 ### 本地构建
 
@@ -193,7 +195,7 @@ npm run build
 
 # 后端交叉编译
 cd ../backend
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o edit-business ./cmd/server
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o edit-api ./cmd/server
 ```
 
 ### 部署脚本

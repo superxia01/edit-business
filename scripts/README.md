@@ -130,8 +130,8 @@ ssh shanghai-tencent
 # 查看备份文件
 ls -la /var/www/edit-business/*.backup.*
 
-# 回滚到指定版本
-sudo mv /var/www/edit-business/edit-business.backup.20260204_120000 /var/www/edit-business/edit-business
+# 回滚到指定版本（注意：现在使用 edit-api）
+sudo mv /var/www/edit-business/edit-api.backup.20260205_120000 /var/www/edit-business/edit-api
 
 # 重启服务
 sudo systemctl restart edit-business
@@ -190,7 +190,7 @@ ssh shanghai-tencent "sudo journalctl -u edit-business -n 50 --no-pager"
 ssh shanghai-tencent "sudo cat /var/www/edit-business/.env"
 
 # 手动启动测试
-ssh shanghai-tencent "cd /var/www/edit-business && ./edit-business"
+ssh shanghai-tencent "cd /var/www/edit-business && ./edit-api"
 ```
 
 ### 前端访问 404

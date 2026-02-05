@@ -1,6 +1,19 @@
 # Edit Business 部署说明
 
-本文档提供快速部署指南。详细的部署脚本使用说明请参考 [scripts/README.md](./scripts/README.md)。
+本文档提供快速部署指南。
+
+**📋 部署前检查**: [DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md) - 部署前30秒快速核对
+**📖 脚本说明**: [scripts/README.md](./scripts/README.md) - 详细的部署脚本使用说明
+**📖 项目说明**: [README.md](./README.md) - 项目概览
+
+---
+
+## ⚡ 快速开始
+
+**第一次部署？** 按顺序执行：
+1. 阅读 [DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md) - 了解部署规范
+2. 执行首次部署（见下方）
+3. 验证服务状态
 
 ## 快速部署
 
@@ -45,14 +58,16 @@ edit-business/
 │   ├── dist/              # 构建输出
 │   └── ...
 ├── backend/               # 后端项目
-│   ├── edit-business      # 二进制文件
+│   ├── edit-api           # 二进制文件（标准命名）
 │   ├── migrations/        # 数据库迁移
 │   └── ...
 ├── scripts/               # 部署脚本
 │   ├── deploy-production.sh
 │   ├── first-deploy.sh
+│   ├── DEPLOYMENT-CHECKLIST.md  # 部署检查清单
 │   └── ops/              # 运维配置（敏感）
-└── DEPLOYMENT.md          # 本文档
+├── DEPLOYMENT.md          # 本文档
+└── README.md             # 项目说明
 ```
 
 ## 环境变量
@@ -115,8 +130,8 @@ ssh shanghai-tencent
 # 查看备份
 ls -la /var/www/edit-business/*.backup.*
 
-# 回滚
-sudo mv /var/www/edit-business/edit-business.backup.20260204_120000 /var/www/edit-business/edit-business
+# 回滚到指定版本（注意：现在使用 edit-api）
+sudo mv /var/www/edit-business/edit-api.backup.20260205_120000 /var/www/edit-business/edit-api
 sudo systemctl restart edit-business
 ```
 
