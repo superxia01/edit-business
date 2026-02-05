@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Download, AlertCircle, CheckCircle, FileText, Clock } from 'lucide-react'
 
 export function PluginDownloadPage() {
-  const downloadLink = 'https://edit.crazyaigc.com/plugin/edit-business-crawler.zip'
+  const downloadLink = 'https://gobiggroup.feishu.cn/docx/Da4ddgCkToF1vDxyLxvc2Thdn8e?from=from_copylink'
 
   const features = [
     {
@@ -202,7 +202,7 @@ export function PluginDownloadPage() {
             <p>• 1. 登录系统后访问<a href="/settings" className="text-primary hover:underline">设置页面</a>生成 API Key</p>
             <p>• 2. 安装插件后在"设置"标签中配置 API Key</p>
             <p>• 3. 访问小红书页面，点击插件图标开始采集</p>
-            <p>• 遇到问题请通过 GitHub Issues 反馈</p>
+            <p>• <a href="https://gobiggroup.feishu.cn/docx/Da4ddgCkToF1vDxyLxvc2Thdn8e?from=from_copylink" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">查看使用文档</a></p>
           </CardContent>
         </Card>
     </main>

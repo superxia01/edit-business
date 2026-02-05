@@ -47,3 +47,8 @@ func NotFound(c *gin.Context, message string) {
 func InternalError(c *gin.Context, message string) {
 	ErrorResponse(c, http.StatusInternalServerError, message)
 }
+
+// Unauthorized 401 错误
+func Unauthorized(c *gin.Context, message string) {
+	ErrorResponse(c, http.StatusUnauthorized, message)
+}

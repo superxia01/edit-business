@@ -106,7 +106,7 @@ func (h *UserHandler) SyncUserFromAuthCenter(c *gin.Context) {
 		return
 	}
 
-	user, err := h.userService.SyncUserFromAuthCenter(authCenterUserID)
+	user, err := h.userService.SyncUserFromAuthCenter(authCenterUserID, nil, nil)
 	if err != nil {
 		InternalError(c, err.Error())
 		return

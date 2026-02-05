@@ -54,10 +54,11 @@ func (j *JSONB) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON implements json.Marshaler
 func (j JSONB) MarshalJSON() ([]byte, error) {
-    if len(j) == 0 {
-        return []byte("{}"), nil
-    }
-    return json.Marshal(j)
+	if len(j) == 0 {
+		return []byte("{}"), nil
+	}
+	// 直接转换为 map[string]interface{} 来避免递归调用
+	return json.Marshal(map[string]interface{}(j))
 }
 
 // Value implements driver.Valuer

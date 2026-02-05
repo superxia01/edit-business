@@ -59,16 +59,40 @@ func (s *UserService) GetByAuthCenterUserID(authCenterUserID string) (*model.Use
 }
 
 // SyncUserFromAuthCenter 从账号中心同步用户信息
-func (s *UserService) SyncUserFromAuthCenter(authCenterUserID string) (*model.User, error) {
+func (s *UserService) SyncUserFromAuthCenter(authCenterUserID string, nickname interface{}, headimgurl interface{}) (*model.User, error) {
 	parsedUUID, err := uuid.Parse(authCenterUserID)
 	if err != nil {
 		return nil, err
 	}
 
+	// 尝试获取现有用户
+	existingUser, err := s.userRepo.GetByAuthCenterUserID(authCenterUserID)
+	var profile map[string]interface{}
+
+	if err == nil && existingUser != nil {
+		// 用户已存在，使用现有的 profile（如果为 nil 则初始化）
+		profile = existingUser.Profile
+		if profile == nil {
+			profile = make(map[string]interface{})
+		}
+	}
+	// 如果是新用户或 profile 为空，初始化
+	if profile == nil {
+		profile = make(map[string]interface{})
+	}
+
+	// 更新 profile 中的字段（如果提供了新值）
+	if nickname != nil {
+		profile["nickname"] = nickname
+	}
+	if headimgurl != nil {
+		profile["headimgurl"] = headimgurl
+	}
+
 	user := &model.User{
 		AuthCenterUserID: parsedUUID,
 		Role:             "USER",
-		Profile:          make(map[string]interface{}),
+		Profile:          profile,
 	}
 
 	err = s.userRepo.UpsertByAuthCenterUserID(user)

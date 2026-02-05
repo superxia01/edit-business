@@ -36,9 +36,12 @@ func SetupRouter(
 		// 认证相关路由（无需认证）
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/wechat", authHandler.WechatLogin)
+			auth.GET("/wechat/login", authHandler.WechatLoginProxy)
 			auth.GET("/wechat/callback", authHandler.WechatCallback)
 		}
+
+		// 用户信息路由（支持 auth-center token，无需 JWT）
+		v1.GET("/user/me", authHandler.Me)
 
 		// 笔记相关路由
 		notes := v1.Group("/notes")
@@ -85,7 +88,6 @@ func SetupRouter(
 		users.Use(middleware.JWTAuth())
 		{
 			users.POST("", userHandler.Create)
-			users.GET("/me", authHandler.GetCurrentUser)
 			users.GET("/sync/:authCenterUserId", userHandler.SyncUserFromAuthCenter)
 			users.GET("/auth-center/:authCenterUserId", userHandler.GetByAuthCenterUserID)
 			users.GET("/:id", userHandler.GetByID)

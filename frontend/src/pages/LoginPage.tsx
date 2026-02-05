@@ -1,20 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 export function LoginPage() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // 跳转到账号中心的微信登录（回调到前端路由）
+  // 处理登录错误信息
+  useEffect(() => {
+    const errorMsg = searchParams.get('error')
+    if (errorMsg) {
+      setError(decodeURIComponent(errorMsg))
+      // 清除URL中的error参数
+      navigate('/login', { replace: true })
+    }
+  }, [searchParams, navigate])
+
+  // 跳转到业务系统后端的微信登录代理接口
   const handleLogin = () => {
     setLoading(true)
     setError('')
 
-    // 跳转到账号中心的微信登录接口
-    // 注意：callbackUrl 是前端路由 /auth/callback，不是后端 API
-    const authCenterUrl = 'https://os.crazyaigc.com/api/auth/wechat/login'
-    const callbackUrl = `${window.location.origin}/auth/callback`
-
-    window.location.href = `${authCenterUrl}?callbackUrl=${encodeURIComponent(callbackUrl)}`
+    // 跳转到业务系统后端的代理接口
+    window.location.href = '/api/v1/auth/wechat/login'
   }
 
   return (

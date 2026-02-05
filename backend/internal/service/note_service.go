@@ -145,6 +145,18 @@ func (s *NoteService) List(req *ListNotesRequest) (*ListNotesResponse, error) {
 		return nil, err
 	}
 
+	// DEBUG: 打印第一条笔记的图片数据
+	if len(notes) > 0 {
+		firstNote := notes[0]
+		println("DEBUG: 第一条笔记图片数据:")
+		println("  Title:", firstNote.Title)
+		println("  CoverImageURL:", firstNote.CoverImageURL)
+		println("  ImageURLs length:", len(firstNote.ImageURLs))
+		if len(firstNote.ImageURLs) > 0 {
+			println("  ImageURLs[0]:", firstNote.ImageURLs[0])
+		}
+	}
+
 	totalPages := int(total) / req.Size
 	if int(total)%req.Size > 0 {
 		totalPages++

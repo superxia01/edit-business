@@ -29,7 +29,7 @@ export function useAuth() {
     }
 
     try {
-      const response = await apiClient.get('/users/me')
+      const response = await apiClient.get('/user/me')
       // 兼容两种响应格式：response.data 直接是用户对象，或者 response.data.data 是用户对象
       const userData = response.data?.data || response.data
       if (userData) {
