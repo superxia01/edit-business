@@ -18,6 +18,7 @@ func SetupRouter(
 	statsHandler *handler.StatsHandler,
 	apiKeyHandler *handler.APIKeyHandler,
 	userSettingsHandler *handler.UserSettingsHandler,
+	qiniuHandler *handler.QiniuHandler,
 	authCenterService *service.AuthCenterService,
 	userRepo *repository.UserRepository,
 ) *gin.Engine {
@@ -132,6 +133,13 @@ func SetupRouter(
 		{
 			userSettings.GET("", userSettingsHandler.GetOrCreate)
 			userSettings.POST("/toggle-collection", userSettingsHandler.ToggleCollectionEnabled)
+		}
+
+		// 七牛云相关路由（使用 API Key 认证）
+		qiniu := v1.Group("/qiniu")
+		qiniu.Use(apiKeyHandler.ValidateAPIKeyMiddleware())
+		{
+			qiniu.GET("/upload-token", qiniuHandler.GetUploadToken)
 		}
 	}
 
