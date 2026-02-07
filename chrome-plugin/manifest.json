@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "小红书数据采集 - Edit Business",
+  "name": "Edit Business - 内容管理工具",
   "version": "2.0.0",
-  "description": "一键采集小红书笔记和博主信息，自动同步到云端数据库",
+  "description": "一键收藏平台内容，自动同步到云端数据库",
   "permissions": [
     "activeTab",
     "scripting",

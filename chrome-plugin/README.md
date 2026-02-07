@@ -7,7 +7,7 @@
 1. 下载 xhs2feishu 插件源码
 2. 修改配置文件（见下文）
 3. 在 Chrome 中加载插件
-4. 访问小红书采集数据
+4. 访问平台收藏数据
 
 ## 修改文件清单
 
@@ -75,10 +75,10 @@ const noteData = {
     captureTimestamp: Date.now(),
 };
 
-// 博主信息数据映射
+// 创作者信息数据映射
 const bloggerData = {
-    xhsId: bloggerId,
-    bloggerName: bloggerName,
+    platformId: platformId,
+    creatorName: creatorName,
     avatarUrl: avatarUrl,
     description: description,
     followersCount: followerCount,
@@ -94,7 +94,7 @@ const bloggerData = {
   "manifest_version": 3,
   "name": "edit-business-crawler",
   "version": "2.0.0",
-  "description": "小红书数据采集并同步到 edit-business 系统",
+  "description": "平台数据收藏并同步到 edit-business 系统",
   "permissions": [
     "activeTab",
     "scripting",
@@ -160,18 +160,18 @@ const bloggerData = {
 - **认证**: 无需认证
 - **请求体**: 笔记数组
 
-### 同步博主信息
+### 同步创作者信息
 - **接口**: `POST /api/v1/bloggers`
 - **认证**: 无需认证
 - **请求体**:
 ```json
 {
-  "xhsId": "小红书号",
-  "bloggerName": "博主名称",
+  "platformId": "平台号",
+  "creatorName": "创作者名称",
   "avatarUrl": "头像URL",
   "description": "简介",
   "followersCount": 10000,
-  "bloggerUrl": "博主主页URL",
+  "bloggerUrl": "创作者主页URL",
   "captureTimestamp": 1736000000000
 }
 ```
@@ -186,27 +186,27 @@ const bloggerData = {
 4. 点击"加载已解压的扩展程序"
 5. 选择插件文件夹
 
-### 采集单篇笔记
+### 收藏单篇笔记
 
-1. 访问小红书笔记详情页
+1. 访问平台笔记详情页
 2. 点击浏览器工具栏中的插件图标
-3. 在侧边栏中点击"采集笔记"
+3. 在侧边栏中点击"收藏笔记"
 
-### 批量采集笔记
+### 批量收藏笔记
 
-1. 访问小红书博主主页
+1. 访问平台创作者主页
 2. 点击插件图标
-3. 在侧边栏中点击"批量采集"
+3. 在侧边栏中点击"批量收藏"
 
-### 采集博主信息
+### 收藏创作者信息
 
-1. 访问小红书博主主页
+1. 访问平台创作者主页
 2. 点击插件图标
-3. 在侧边栏中点击"采集博主信息"
+3. 在侧边栏中点击"收藏创作者信息"
 
 ## 故障排查
 
-### 采集失败
+### 收藏失败
 
 - 检查网络连接
 - 查看浏览器控制台错误

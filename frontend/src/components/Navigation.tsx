@@ -11,8 +11,8 @@ export function Navigation() {
   const navItems = [
     { path: '/dashboard', label: '数据概览' },
     { path: '/notes', label: '单篇笔记' },
-    { path: '/blogger-notes', label: '博主笔记' },
-    { path: '/bloggers', label: '博主列表' },
+    { path: '/blogger-notes', label: '创作者内容' },
+    { path: '/bloggers', label: '创作者列表' },
     { path: '/settings', label: '设置', icon: Settings },
   ]
 
@@ -22,7 +22,7 @@ export function Navigation() {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center space-x-2">
-              <span className="text-xl font-bold">小红书数据采集</span>
+              <span className="text-xl font-bold">内容管理工具</span>
             </Link>
             <div className="flex items-center gap-2">
               {navItems.map((item) => (

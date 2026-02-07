@@ -109,63 +109,97 @@ export function NotesListPage() {
       ),
     },
     {
-      accessorKey: 'media',
-      header: '媒体',
+      accessorKey: 'coverImage',
+      header: '封面图',
       cell: ({ row }) => {
         const hasVideo = row.original.videoUrl
         const hasImages = row.original.imageUrls && row.original.imageUrls.length > 0
 
         if (hasVideo) {
           return (
-            <div className="flex items-center gap-2">
-              <Badge variant="default" className="gap-1">
-                <Video className="w-3 h-3" />
-                视频
-              </Badge>
-            </div>
+            <Badge variant="default" className="gap-1">
+              <Video className="w-3 h-3" />
+              视频笔记
+            </Badge>
           )
         }
 
         if (hasImages) {
-          const imageUrls = row.original.imageUrls || []
+          const coverImageUrl = row.original.coverImageUrl || row.original.imageUrls[0]
+          // 七牛云图片处理：添加缩略图参数
+          const thumbnailUrl = coverImageUrl.includes('cdn.crazyaigc.com')
+            ? `${coverImageUrl}?imageView2/2/w/100/h/100`
+            : coverImageUrl
 
           return (
-            <div className="flex gap-1 flex-wrap max-w-[200px]">
-              {imageUrls.slice(0, 4).map((url, index) => {
-                // 七牛云图片处理：添加缩略图参数
-                const thumbnailUrl = url.includes('cdn.crazyaigc.com')
-                  ? `${url}?imageView2/2/w/100/h/100`
-                  : url
-
-                return (
-                  <a
-                    key={index}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="relative group"
-                    title="点击查看大图"
-                  >
-                    <img
-                      src={thumbnailUrl}
-                      alt={`图片${index + 1}`}
-                      className="w-12 h-12 object-cover rounded border border-gray-200 hover:border-blue-500 transition-colors"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded" />
-                  </a>
-                )
-              })}
-              {imageUrls.length > 4 && (
-                <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded border border-gray-200 text-xs text-gray-600">
-                  +{imageUrls.length - 4}
-                </div>
-              )}
-            </div>
+            <a
+              href={coverImageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block"
+              title="点击查看大图"
+            >
+              <img
+                src={thumbnailUrl}
+                alt="封面图"
+                className="w-16 h-16 object-cover rounded border border-gray-200 hover:border-blue-500 transition-colors"
+                loading="lazy"
+              />
+            </a>
           )
         }
 
         return <span className="text-muted-foreground">-</span>
+      },
+    },
+    {
+      accessorKey: 'innerImages',
+      header: '内页图',
+      cell: ({ row }) => {
+        const imageUrls = row.original.imageUrls || []
+        const coverImageUrl = row.original.coverImageUrl || (imageUrls.length > 0 ? imageUrls[0] : '')
+
+        // 过滤掉封面图，只显示内页图
+        const innerImages = imageUrls.filter(url => url !== coverImageUrl)
+
+        if (innerImages.length === 0) {
+          return <span className="text-muted-foreground">-</span>
+        }
+
+        return (
+          <div className="flex gap-1 flex-wrap max-w-[300px]">
+            {innerImages.slice(0, 6).map((url, index) => {
+              // 七牛云图片处理：添加缩略图参数
+              const thumbnailUrl = url.includes('cdn.crazyaigc.com')
+                ? `${url}?imageView2/2/w/80/h/80`
+                : url
+
+              return (
+                <a
+                  key={index}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative group"
+                  title="点击查看大图"
+                >
+                  <img
+                    src={thumbnailUrl}
+                    alt={`内页图${index + 1}`}
+                    className="w-10 h-10 object-cover rounded border border-gray-200 hover:border-blue-500 transition-colors"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded" />
+                </a>
+              )
+            })}
+            {innerImages.length > 6 && (
+              <div className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded border border-gray-200 text-xs text-gray-600">
+                +{innerImages.length - 6}
+              </div>
+            )}
+          </div>
+        )
       },
     },
     {

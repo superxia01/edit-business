@@ -54,7 +54,7 @@ export function SettingsPage() {
         setUserSettings(response.data)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '切换采集开关失败')
+      setError(err instanceof Error ? err.message : '切换收藏开关失败')
     } finally {
       setToggling(false)
     }
@@ -72,7 +72,7 @@ export function SettingsPage() {
     <main className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">设置</h1>
-        <p className="text-muted-foreground">管理你的API Key和采集设置</p>
+        <p className="text-muted-foreground">管理你的API Key和收藏设置</p>
       </div>
 
         {error && (
@@ -90,22 +90,22 @@ export function SettingsPage() {
           </div>
         )}
 
-        {/* 采集控制 */}
+        {/* 收藏控制 */}
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
-              采集控制
+              收藏控制
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <Label htmlFor="collection-toggle" className="text-base font-semibold">
-                  允许数据采集
+                  允许数据收藏
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  开启后，Chrome插件才能采集数据到你的账户
+                  开启后，Chrome插件才能收藏数据到你的账户
                 </p>
               </div>
               <Switch
@@ -120,15 +120,15 @@ export function SettingsPage() {
               <div className="flex items-start gap-2 p-3 bg-amber-500/10 text-amber-600 dark:text-amber-500 rounded-lg">
                 <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                 <div className="text-sm space-y-1">
-                  <p className="font-semibold">采集功能已关闭</p>
-                  <p>Chrome插件将无法采集数据。开启开关以允许数据采集。</p>
+                  <p className="font-semibold">收藏功能已关闭</p>
+                  <p>Chrome插件将无法收藏数据。开启开关以允许数据收藏。</p>
                 </div>
               </div>
             )}
 
-            {/* 采集限额信息（只读） */}
+            {/* 收藏限额信息（只读） */}
             <div className="border rounded-lg p-4 space-y-3">
-              <h4 className="font-semibold text-sm">采集限额</h4>
+              <h4 className="font-semibold text-sm">收藏限额</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">每日限额</p>
@@ -225,16 +225,16 @@ export function SettingsPage() {
             </div>
 
             <div className="space-y-2 text-sm">
-              <p className="font-semibold">4. 开启采集功能</p>
+              <p className="font-semibold">4. 开启收藏功能</p>
               <p className="text-muted-foreground">
-                在本页面开启"允许数据采集"开关，插件才能正常工作。
+                在本页面开启"允许数据收藏"开关，插件才能正常工作。
               </p>
             </div>
 
             <div className="space-y-2 text-sm">
               <p className="font-semibold">5. 开始使用</p>
               <p className="text-muted-foreground">
-                访问小红书网站，点击插件图标即可开始采集数据。
+                访问平台网站，点击插件图标即可开始收藏数据。
               </p>
             </div>
           </CardContent>

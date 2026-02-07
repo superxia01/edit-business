@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "edit-business-crawler",
   "version": "2.0.0",
-  "description": "小红书数据采集并同步到 edit-business 系统",
+  "description": "内容管理工具并同步到 edit-business 系统",
   "permissions": [
     "activeTab",
     "scripting",

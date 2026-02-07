@@ -73,12 +73,12 @@ export function BloggersListPage() {
     },
     {
       accessorKey: 'bloggerName',
-      header: '博主名称',
+      header: '创作者名称',
       cell: ({ row }) => row.original.bloggerName || '-',
     },
     {
       accessorKey: 'xhsId',
-      header: '小红书号',
+      header: '平台ID',
       cell: ({ row }) => row.original.xhsId || '-',
     },
     {
@@ -129,7 +129,7 @@ export function BloggersListPage() {
     },
     {
       accessorKey: 'captureTimestamp',
-      header: '采集时间',
+      header: '收藏时间',
       cell: ({ row }) => formatDate(row.original.captureTimestamp),
     },
   ]
@@ -145,9 +145,9 @@ export function BloggersListPage() {
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">博主列表</h1>
+        <h1 className="text-3xl font-bold">创作者列表</h1>
         <p className="text-muted-foreground mt-1">
-          共 {pagination.total} 位博主
+          共 {pagination.total} 位创作者
         </p>
       </div>
 

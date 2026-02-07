@@ -28,7 +28,7 @@ export function LoginPage() {
       <div className="w-full max-w-md p-8">
         <div className="bg-card rounded-lg shadow-lg p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold">小红书数据采集系统</h1>
+            <h1 className="text-3xl font-bold">内容管理工具系统</h1>
             <p className="text-muted-foreground mt-2">请使用账号中心登录</p>
           </div>
 

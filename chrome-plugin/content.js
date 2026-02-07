@@ -18,12 +18,12 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     }).catch(error => {
       isCanceled = true;
       clearInterval(progressInterval);
-      console.error('采集错误:', error);
-      sendResponse({ error: error.message || '请确保在小红书博主主页上使用此功能，并等待页面完全加载' });
+      console.error('收藏错误:', error);
+      sendResponse({ error: error.message || '请确保在平台创作者主页上使用此功能，并等待页面完全加载' });
     });
     return true; // 保持消息通道开放
   } else if (request.action === 'checkIsNotePage') {
-    // 检查是否在小红书笔记详情页
+    // 检查是否在平台笔记详情页
     const isNotePage = checkIsNotePage();
     sendResponse({ isNotePage: isNotePage });
     return true;
@@ -37,22 +37,22 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     });
     return true;
   } else if (request.action === 'extractBloggerInfo') {
-    // 提取博主信息
+    // 提取创作者信息
     extractBloggerInfo().then(data => {
       sendResponse({ success: true, data: data });
     }).catch(error => {
-      console.error('提取博主信息错误:', error);
-      sendResponse({ success: false, error: error.message || '提取博主信息失败' });
+      console.error('提取创作者信息错误:', error);
+      sendResponse({ success: false, error: error.message || '提取创作者信息失败' });
     });
     return true;
   } else if (request.action === 'startCaptureBloggerInfo') {
-    // 处理开始采集博主信息的请求
+    // 处理开始收藏创作者信息的请求
     extractBloggerInfo().then(data => {
-      // 直接向sidebar.js发送采集到的博主信息
+      // 直接向sidebar.js发送收藏到的创作者信息
       chrome.runtime.sendMessage({action: 'bloggerInfoCaptured', success: true, data: data});
       sendResponse({ success: true });
     }).catch(error => {
-      console.error('采集博主信息错误:', error);
+      console.error('收藏创作者信息错误:', error);
       chrome.runtime.sendMessage({action: 'bloggerInfoCaptured', success: false, error: error.message});
       sendResponse({ success: false, error: error.message });
     });
@@ -65,27 +65,27 @@ function getElementByXPath(xpath, context = document) {
   return document.evaluate(xpath, context, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
 }
 
-// 提取博主信息函数 - 修改为动态提取值
+// 提取创作者信息函数 - 修改为动态提取值
 async function extractBloggerInfo() {
-  console.log('开始提取博主信息');
+  console.log('开始提取创作者信息');
   
-  // 验证是否在小红书博主主页
+  // 验证是否在平台创作者主页
   if (!window.location.href.includes('xiaohongshu.com')) {
-    throw new Error('请在小红书网站使用此功能');
+    throw new Error('请在平台网站使用此功能');
   }
 
-  // 检查是否在博主主页
+  // 检查是否在创作者主页
   const isUserPage = window.location.href.includes('/user/profile/') || 
                      document.querySelector('.user-page, .profile-page, .user-profile') !== null;
   
   if (!isUserPage) {
-    throw new Error('请确保在小红书博主主页上使用此功能');
+    throw new Error('请确保在平台创作者主页上使用此功能');
   }
 
   // 给页面一些时间加载完成
   await new Promise(resolve => setTimeout(resolve, 1000));
 
-  // 博主主页链接
+  // 创作者主页链接
   const profileUrl = window.location.href;
   
   // 提取头像链接 - 根据HTML结构动态提取
@@ -103,7 +103,7 @@ async function extractBloggerInfo() {
     }
   }
   
-  // 提取博主名称 - 根据HTML结构动态提取
+  // 提取创作者名称 - 根据HTML结构动态提取
   let bloggerName = '';
   const nameElements = [
     document.querySelector('.user-name, .nickname, .name, .user-nickname .user-name'),
@@ -118,7 +118,7 @@ async function extractBloggerInfo() {
     }
   }
   
-  // 提取博主简介 - 根据HTML结构动态提取
+  // 提取创作者简介 - 根据HTML结构动态提取
   let bloggerBio = '';
   const bioElements = [
     document.querySelector('.bio, .description, .intro, .user-bio, .user-desc'),
@@ -132,12 +132,12 @@ async function extractBloggerInfo() {
     }
   }
   
-  // 提取小红书号 - 根据HTML结构动态提取
+  // 提取平台号 - 根据HTML结构动态提取
   let xhsId = '';
   const idElements = [
     document.querySelector('.id, .user-id, .account-info .id, .user-redId'),
     document.querySelector('[data-v-1d90bc98=""] .user-redId'),
-    document.evaluate("//span[contains(text(), '小红书号')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+    document.evaluate("//span[contains(text(), '平台号')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
   ];
   
   for (const element of idElements) {
@@ -178,35 +178,35 @@ async function extractBloggerInfo() {
     }
   }
   
-  // 构建博主信息对象 - 确保属性名与sidebar.js中使用的一致
+  // 构建创作者信息对象 - 确保属性名与sidebar.js中使用的一致
   const bloggerInfo = {
     avatarUrl: avatarUrl,        // 头像URL
-    bloggerName: bloggerName,    // 博主名称
-    description: bloggerBio,     // 博主简介
-    bloggerId: xhsId,            // 小红书号
+    bloggerName: bloggerName,    // 创作者名称
+    description: bloggerBio,     // 创作者简介
+    bloggerId: xhsId,            // 平台号
     followersCount: followersCount, // 粉丝数
-    bloggerUrl: profileUrl,      // 博主主页链接
-    captureTimestamp: new Date().getTime() // 采集时间戳
+    bloggerUrl: profileUrl,      // 创作者主页链接
+    captureTimestamp: new Date().getTime() // 收藏时间戳
   };
   
-  console.log('博主信息提取完成:', bloggerInfo);
+  console.log('创作者信息提取完成:', bloggerInfo);
   return bloggerInfo;
 }
 
 async function captureLinks() {
-  console.log('开始采集链接流程');
+  console.log('开始收藏链接流程');
   
-  // 验证是否在小红书博主主页
+  // 验证是否在平台创作者主页
   if (!window.location.href.includes('xiaohongshu.com')) {
-    throw new Error('请在小红书网站使用此功能');
+    throw new Error('请在平台网站使用此功能');
   }
 
-  // 检查是否在博主主页
+  // 检查是否在创作者主页
   const isUserPage = window.location.href.includes('/user/profile/') || 
                      document.querySelector('.user-page, .profile-page, .user-profile') !== null;
   
   if (!isUserPage) {
-    throw new Error('请确保在小红书博主主页上使用此功能');
+    throw new Error('请确保在平台创作者主页上使用此功能');
   }
 
   // 修改：移除强制刷新页面的代码，改用温和的状态重置方法
@@ -236,7 +236,7 @@ async function captureLinks() {
   window.captureProgress = function() {
     chrome.runtime.sendMessage({
       action: 'captureProgress',
-      message: `正在采集第${window.currentScrollStep}/${window.totalScrollStepsForUI}批内容...`,
+      message: `正在收藏第${window.currentScrollStep}/${window.totalScrollStepsForUI}批内容...`,
       currentCount: window.currentLinkCount
     });
   };
@@ -250,13 +250,13 @@ async function captureLinks() {
     xsecParams = currentUrl.substring(currentUrl.indexOf('?'));
   }
   
-  // 获取博主名称
+  // 获取创作者名称
   let authorName = '未知作者';
   const authorNameElement = document.querySelector('.user-name, .nickname, .name, .user-info h1, .user-info .name');
   if (authorNameElement) {
     authorName = authorNameElement.textContent.trim();
   }
-  console.log('博主名称:', authorName);
+  console.log('创作者名称:', authorName);
   
   // 改进的滚动加载策略 - 使用渐进式滚动
   let scrollPosition = 0;
@@ -516,16 +516,16 @@ async function captureLinks() {
   delete window.currentLinkCount;
   
   if (links.length === 0) {
-    throw new Error('未能采集到任何链接，请确保在博主主页上使用此功能，并等待页面完全加载');
+    throw new Error('未能收藏到任何链接，请确保在创作者主页上使用此功能，并等待页面完全加载');
   }
   
-  console.log('采集完成，共获取链接数:', links.length);
+  console.log('收藏完成，共获取链接数:', links.length);
   return links;
 }
 
-// 单篇笔记采集相关功能
+// 单篇笔记收藏相关功能
 function checkIsNotePage() {
-  // 扩展URL模式检测，包含更多可能的小红书笔记页面格式
+  // 扩展URL模式检测，包含更多可能的平台笔记页面格式
   const urlPattern = /xiaohongshu\.com\/(?:discovery|explore)\/item|xiaohongshu\.com\/note|www\.xiaohongshu\.com\/explore/;
   const isUrlMatch = urlPattern.test(window.location.href);
   
@@ -550,7 +550,7 @@ function checkIsNotePage() {
   const hasTitle = document.querySelector('.title, .note-title, .post-title') !== null;
   
   // 改进判断逻辑，更加灵活
-  // 如果URL明显是小红书的，并且有笔记特征元素，就认为是笔记页
+  // 如果URL明显是平台的，并且有笔记特征元素，就认为是笔记页
   if (window.location.href.includes('xiaohongshu.com')) {
     // URL匹配或者有足够的笔记特征元素
     return isUrlMatch || 
@@ -564,7 +564,7 @@ function checkIsNotePage() {
 async function extractNoteData() {
   // 验证页面
   if (!checkIsNotePage()) {
-    throw new Error('请确保在小红书笔记详情页上使用此功能');
+    throw new Error('请确保在平台笔记详情页上使用此功能');
   }
   
   console.log('开始提取笔记数据');
@@ -573,7 +573,7 @@ async function extractNoteData() {
   const url = window.location.href;
   
   // 核心改进：首先找到笔记的主容器，然后在容器内进行所有元素查找
-  // 这能有效解决采集到其他笔记数据的问题
+  // 这能有效解决收藏到其他笔记数据的问题
   let noteContainer = null;
   const possibleContainers = [
     document.getElementById('noteContainer'),
@@ -596,7 +596,7 @@ async function extractNoteData() {
     throw new Error('无法找到笔记主容器，无法提取数据');
   }
   
-  // 提取作者信息 - 在笔记容器内查找，避免采集到其他笔记的作者
+  // 提取作者信息 - 在笔记容器内查找，避免收藏到其他笔记的作者
   let author = '';
   const authorSelectors = [
     '.username',
@@ -830,7 +830,7 @@ async function extractNoteData() {
       }
     }
   } else {
-    // 2. 如果不是视频笔记，查找轮播图片元素（这是小红书常见的图片展示方式）
+    // 2. 如果不是视频笔记，查找轮播图片元素（这是平台常见的图片展示方式）
     const slideElements = document.querySelectorAll('.swiper-slide:not(.swiper-slide-duplicate)');
     if (slideElements.length > 0) {
       console.log('找到轮播图片元素数量:', slideElements.length);
@@ -965,7 +965,7 @@ async function extractNoteData() {
     formattedImageUrls = imageUrls.map((url, index) => `图${index + 1}=(${url})`).join('\n');
   }
   
-  // 4. 记录采集时间并转为时间戳格式
+  // 4. 记录收藏时间并转为时间戳格式
   const captureTimestamp = new Date().getTime(); // 中国日期的时间戳格式
   
   // 5. 提取封面链接（第一张图片）
@@ -1199,7 +1199,7 @@ function processPublishDate(rawDate) {
     formattedImageUrls: formattedImageUrls, // 添加格式化后的图片链接
     noteType: noteType, // 添加笔记类型
     coverImageUrl: coverImageUrl, // 添加封面链接
-    captureTimestamp: captureTimestamp, // 添加采集时间戳
+    captureTimestamp: captureTimestamp, // 添加收藏时间戳
     captureRemark: ''
   };
 
@@ -1364,7 +1364,7 @@ function isValidVideoUrl(url) {
   const videoExtensions = ['.mp4', '.m3u8', '.webm', '.mov', '.avi'];
   const hasVideoExtension = videoExtensions.some(ext => url.toLowerCase().includes(ext));
   
-  // 检查是否包含小红书视频域名特征
+  // 检查是否包含平台视频域名特征
   const hasXhsVideoDomain = url.includes('xhscdn.com') || url.includes('xiaohongshu.com') || url.includes('xhsstatic.com');
   
   const isValid = hasVideoExtension || hasXhsVideoDomain || url.includes('.mp4') || url.includes('.m3u8');

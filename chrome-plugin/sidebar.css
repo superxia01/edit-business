@@ -522,7 +522,7 @@ input[type="text"]::placeholder {
   font-weight: 500;
 }
 
-/* 博主头像容器样式 */
+/* 创作者头像容器样式 */
 .blogger-avatar-container {
   width: 60px;
   height: 80px;

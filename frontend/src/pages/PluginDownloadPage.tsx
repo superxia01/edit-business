@@ -8,18 +8,18 @@ export function PluginDownloadPage() {
   const features = [
     {
       icon: <CheckCircle className="h-5 w-5 text-green-600" />,
-      title: '一键采集',
-      description: '在笔记详情页或博主主页，点击插件图标即可自动采集数据'
+      title: '一键收藏',
+      description: '在笔记详情页或创作者主页，点击插件图标即可自动收藏数据'
     },
     {
       icon: <CheckCircle className="h-5 w-5 text-green-600" />,
       title: '批量同步',
-      description: '支持批量采集博主主页的笔记列表，提高采集效率'
+      description: '支持批量采集创作者主页的笔记列表，提高收藏效率'
     },
     {
       icon: <CheckCircle className="h-5 w-5 text-green-600" />,
       title: '自动存储',
-      description: '采集的数据自动同步到云端，随时随地查看'
+      description: '收藏的数据自动同步到云端，随时随地查看'
     },
     {
       icon: <CheckCircle className="h-5 w-5 text-green-600" />,
@@ -47,7 +47,7 @@ export function PluginDownloadPage() {
     {
       num: 4,
       title: '开始使用',
-      description: '访问小红书网站，点击插件图标即可开始采集数据'
+      description: '访问平台网站，点击插件图标即可开始收藏数据'
     },
   ]
 
@@ -62,7 +62,7 @@ export function PluginDownloadPage() {
     },
     {
       title: '开始使用',
-      description: '配置完成后，访问小红书页面即可开始采集数据',
+      description: '配置完成后，访问平台页面即可开始收藏数据',
     },
   ]
 
@@ -71,7 +71,7 @@ export function PluginDownloadPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Chrome 插件下载</h1>
         <p className="text-muted-foreground">
-          小红书数据采集插件，一键采集笔记和博主信息
+          内容管理工具插件，一键收藏笔记和创作者信息
         </p>
       </div>
 
@@ -187,8 +187,8 @@ export function PluginDownloadPage() {
           <CardContent className="text-sm text-yellow-700 dark:text-yellow-300 space-y-2">
             <p>• 插件仅支持 Chrome 浏览器 88+ 版本</p>
             <p>• 使用插件前必须先配置 API Key（在设置页面生成）</p>
-            <p>• 采集数据需要有稳定的网络连接</p>
-            <p>• 采集的数据会自动同步到你的账号下</p>
+            <p>• 收藏数据需要有稳定的网络连接</p>
+            <p>• 收藏的数据会自动同步到你的账号下</p>
             <p>• API Key 可以随时停用或删除，建议定期更换</p>
           </CardContent>
         </Card>
@@ -201,7 +201,7 @@ export function PluginDownloadPage() {
           <CardContent className="text-sm text-muted-foreground space-y-2">
             <p>• 1. 登录系统后访问<a href="/settings" className="text-primary hover:underline">设置页面</a>生成 API Key</p>
             <p>• 2. 安装插件后在"设置"标签中配置 API Key</p>
-            <p>• 3. 访问小红书页面，点击插件图标开始采集</p>
+            <p>• 3. 访问平台页面，点击插件图标开始采集</p>
             <p>• <a href="https://gobiggroup.feishu.cn/docx/Da4ddgCkToF1vDxyLxvc2Thdn8e?from=from_copylink" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">查看使用文档</a></p>
           </CardContent>
         </Card>

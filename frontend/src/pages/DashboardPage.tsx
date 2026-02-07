@@ -76,7 +76,7 @@ export function DashboardPage() {
     <main className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">数据概览</h1>
-        <p className="text-muted-foreground mt-2">小红书数据采集统计</p>
+        <p className="text-muted-foreground mt-2">内容管理统计</p>
       </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -87,7 +87,7 @@ export function DashboardPage() {
             color="text-blue-600"
           />
           <StatCard
-            title="博主总数"
+            title="创作者总数"
             value={stats?.totalBloggers || 0}
             icon={Users}
             color="text-green-600"
@@ -143,10 +143,10 @@ export function DashboardPage() {
             <CardTitle>使用指南</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>• 安装 Chrome 插件后，访问小红书笔记页面即可采集数据</p>
-            <p>• 在笔记详情页点击插件图标采集单篇笔记</p>
-            <p>• 在博主主页可以批量采集笔记列表和博主信息</p>
-            <p>• 采集的数据将自动同步到本系统</p>
+            <p>• 安装 Chrome 插件后，访问平台笔记页面即可收藏内容</p>
+            <p>• 在笔记详情页点击插件图标收藏单条内容</p>
+            <p>• 在博主主页可以批量收藏内容列表和创作者信息</p>
+            <p>• 收藏的内容将自动同步到本系统</p>
             <p>• 使用导航栏查看笔记列表、博主列表和统计数据</p>
           </CardContent>
         </Card>
@@ -160,7 +160,7 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              安装 Chrome 插件后，可以自动采集小红书笔记和博主信息到本系统。
+              安装 Chrome 插件后，可以自动采集平台笔记和创作者信息到本系统。
             </p>
 
             <div className="space-y-2">

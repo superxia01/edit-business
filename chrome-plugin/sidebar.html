@@ -19,7 +19,7 @@
           查看数据
         </a>
       </div>
-      <div class="author">小红书@KeenChase</div>
+      <div class="author">@KeenChase</div>
     </div>
 
     <!-- 共用的状态反馈框 - 移到Tab切换按钮上方 -->
@@ -28,17 +28,17 @@
     <!-- Tab切换容器 -->
     <div class="tab-container">
       <div class="tabs">
-        <button id="singleCaptureTab" class="tab-button active">单篇笔记</button>
-        <button id="captureTab" class="tab-button">博主笔记</button>
-        <button id="bloggerInfoTab" class="tab-button">博主信息</button>
+        <button id="singleCaptureTab" class="tab-button active">单条内容</button>
+        <button id="captureTab" class="tab-button">批量内容</button>
+        <button id="bloggerInfoTab" class="tab-button">创作者信息</button>
         <button id="configTab" class="tab-button">设置</button>
       </div>
       <div class="tab-content">
         <!-- 修改单篇采集Tab内容区域，统一使用capture-section类 -->
         <div id="singleCaptureContent" class="tab-pane">
           <div class="capture-section">
-            <p class="capture-tip">请打开笔记详情页再采集单篇笔记</p>
-            <button id="startSingleCaptureBtn">开始采集</button>
+            <p class="capture-tip">请打开内容详情页再收藏单条内容</p>
+            <button id="startSingleCaptureBtn">开始收藏</button>
           </div>
 
           <div class="results-button-container">
@@ -50,7 +50,7 @@
 
           <div class="cards-container">
             <div id="singleCapturedNotesContainer">
-              <p style="text-align: center; color: #999; margin: 20px 0;">暂无采集的笔记</p>
+              <p style="text-align: center; color: #999; margin: 20px 0;">暂无收藏的内容</p>
             </div>
           </div>
         </div>
@@ -58,8 +58,8 @@
         <!-- 开始捕获Tab内容 -->
         <div id="captureContent" class="tab-pane">
           <div class="capture-section">
-            <p class="capture-tip">请打开博主主页再采集全部笔记</p>
-            <button id="startCaptureBtn">开始采集</button>
+            <p class="capture-tip">请打开创作者主页再收藏全部内容</p>
+            <button id="startCaptureBtn">开始收藏</button>
           </div>
 
           <!-- 新增容器，放置刷新列表和同步到飞书按钮 -->
@@ -74,11 +74,11 @@
           </div>
         </div>
 
-        <!-- 博主信息Tab内容 -->
+        <!-- 创作者信息Tab内容 -->
         <div id="bloggerInfoContent" class="tab-pane">
           <div class="capture-section">
-            <p class="capture-tip">请打开小红书博主主页再开始采集</p>
-            <button id="startBloggerCaptureBtn">开始采集</button>
+            <p class="capture-tip">请打开创作者主页再开始收藏</p>
+            <button id="startBloggerCaptureBtn">开始收藏</button>
           </div>
 
           <!-- 新增容器，放置刷新列表和同步到飞书按钮 -->

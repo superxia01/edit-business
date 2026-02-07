@@ -4,22 +4,22 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     // 显示进度信息，但不自动清除
     showStatus(request.message + `\n已发现${request.currentCount}条笔记`);
   } else if (request.action === 'bloggerInfoCaptured') {
-    // 处理博主信息采集结果
+    // 处理创作者信息收藏结果
     if (request.success) {
       capturedBloggerInfo = request.data;
       updateBloggerInfoDisplay();
       checkAndUpdateButtonStatus();
-      showStatus('博主信息采集成功');
+      showStatus('创作者信息收藏成功');
     } else {
-      showStatus('博主信息采集失败: ' + request.error);
+      showStatus('创作者信息收藏失败: ' + request.error);
     }
   }
 });
 
-// 全局变量存储采集的链接数据
+// 全局变量存储收藏的链接数据
 let capturedLinks = [];
-let capturedNote = null; // 单篇笔记采集结果
-let capturedBloggerInfo = null; // 博主信息采集结果
+let capturedNote = null; // 单条内容收藏结果
+let capturedBloggerInfo = null; // 创作者信息收藏结果
 
 // 防止重复初始化的标志
 let isInitialized = false;
@@ -90,7 +90,7 @@ function initializeApp() {
     // 初始化按钮事件监听
     initButtonListeners();
     
-    // 初始化采集的链接展示
+    // 初始化收藏的链接展示
     updateCapturedLinksDisplay();
     updateSingleNoteDisplay();
     updateBloggerInfoDisplay();
@@ -176,11 +176,11 @@ function initTabSwitching() {
       return;
     }
     
-    // 采集Tab点击事件 - 使用更直接的方式
+    // 收藏Tab点击事件 - 使用更直接的方式
     captureTab.onclick = function(e) {
       e.preventDefault();
       e.stopPropagation();
-      console.log('点击了博主笔记Tab', captureTab, captureContent);
+      console.log('点击了创作者笔记Tab', captureTab, captureContent);
       switchTab(captureTab, captureContent);
     };
     
@@ -194,19 +194,19 @@ function initTabSwitching() {
       loadConfiguration();
     };
     
-    // 单篇采集Tab点击事件
+    // 单篇收藏Tab点击事件
     singleCaptureTab.onclick = function(e) {
       e.preventDefault();
       e.stopPropagation();
-      console.log('点击了单篇笔记Tab', singleCaptureTab, singleCaptureContent);
+      console.log('点击了单条内容Tab', singleCaptureTab, singleCaptureContent);
       switchTab(singleCaptureTab, singleCaptureContent);
     };
     
-    // 博主信息Tab点击事件
+    // 创作者信息Tab点击事件
     bloggerInfoTab.onclick = function(e) {
       e.preventDefault();
       e.stopPropagation();
-      console.log('点击了博主信息Tab', bloggerInfoTab, bloggerInfoContent);
+      console.log('点击了创作者信息Tab', bloggerInfoTab, bloggerInfoContent);
       switchTab(bloggerInfoTab, bloggerInfoContent);
     };
     
@@ -269,7 +269,7 @@ function switchTab(activeTab, activeContent) {
 // 初始化按钮事件监听
 function initButtonListeners() {
   try {
-    // 开始采集按钮
+    // 开始收藏按钮
     const startCaptureBtn = document.getElementById('startCaptureBtn');
     if (startCaptureBtn) {
       startCaptureBtn.addEventListener('click', function() {
@@ -317,7 +317,7 @@ function initButtonListeners() {
       });
     }
     
-    // 单篇采集相关按钮
+    // 单篇收藏相关按钮
     const startSingleCaptureBtn = document.getElementById('startSingleCaptureBtn');
     if (startSingleCaptureBtn) {
       startSingleCaptureBtn.addEventListener('click', function() {
@@ -325,7 +325,7 @@ function initButtonListeners() {
       });
     }
     
-    // 添加清空单篇采集按钮的事件绑定
+    // 添加清空单篇收藏按钮的事件绑定
     const clearSingleCaptureBtn = document.getElementById('clearSingleCaptureBtn');
     if (clearSingleCaptureBtn) {
       clearSingleCaptureBtn.addEventListener('click', function() {
@@ -355,7 +355,7 @@ function initButtonListeners() {
       });
     }
     
-    // 博主信息相关按钮
+    // 创作者信息相关按钮
     const startBloggerCaptureBtn = document.getElementById('startBloggerCaptureBtn');
     if (startBloggerCaptureBtn) {
       startBloggerCaptureBtn.addEventListener('click', function() {
@@ -363,7 +363,7 @@ function initButtonListeners() {
       });
     }
     
-    // 博主信息页面的清空按钮
+    // 创作者信息页面的清空按钮
     const clearBloggerBtn = document.getElementById('clearBloggerBtn');
     if (clearBloggerBtn) {
       clearBloggerBtn.addEventListener('click', function() {
@@ -371,7 +371,7 @@ function initButtonListeners() {
       });
     }
     
-    // 添加博主信息页面的导出Excel按钮事件监听
+    // 添加创作者信息页面的导出Excel按钮事件监听
     const exportBloggerExcelBtn = document.getElementById('exportBloggerExcelBtn');
     if (exportBloggerExcelBtn) {
       exportBloggerExcelBtn.addEventListener('click', function() {
@@ -379,7 +379,7 @@ function initButtonListeners() {
       });
     }
     
-    // 添加博主信息页面的同步飞书按钮事件监听
+    // 添加创作者信息页面的同步飞书按钮事件监听
     const syncBloggerFeishuBtn = document.getElementById('syncBloggerFeishuBtn');
     if (syncBloggerFeishuBtn) {
       syncBloggerFeishuBtn.addEventListener('click', function() {
@@ -397,18 +397,18 @@ function initButtonListeners() {
 // 清空所有笔记函数
 function clearAllNotes() {
   // 显示确认对话框，防止用户误操作
-  if (confirm('确定要清空所有采集的笔记吗？此操作不可撤销。')) {
+  if (confirm('确定要清空所有收藏的笔记吗？此操作不可撤销。')) {
     // 清空capturedLinks数组
     capturedLinks = [];
     
-    // 更新UI显示，移除所有采集结果卡片
+    // 更新UI显示，移除所有收藏结果卡片
     updateCapturedLinksDisplay();
     
     // 更新按钮状态，确保导出和同步按钮也被正确禁用
     checkAndUpdateButtonStatus();
     
     // 显示状态信息，告知用户操作已完成
-    showStatus('已清空所有采集的笔记');
+    showStatus('已清空所有收藏的笔记');
   }
 }
 
@@ -421,47 +421,47 @@ function checkAndUpdateButtonStatus() {
   const singleSyncButton = document.getElementById('syncSingleFeishuBtn');
   // 新增下载按钮引用
   const downloadMediaBtn = document.getElementById('downloadMediaBtn');
-  // 新增单篇采集清除按钮引用
+  // 新增单篇收藏清除按钮引用
   const clearSingleCaptureBtn = document.getElementById('clearSingleCaptureBtn');
   
-  // 博主信息相关按钮
+  // 创作者信息相关按钮
   const clearBloggerButton = document.getElementById('clearBloggerBtn');
   const exportBloggerButton = document.getElementById('exportBloggerExcelBtn');
   const syncBloggerButton = document.getElementById('syncBloggerFeishuBtn');
   
-  // 更新普通采集相关按钮状态
+  // 更新普通收藏相关按钮状态
   exportButton.disabled = capturedLinks.length === 0;
   syncButton.disabled = capturedLinks.length === 0;
   clearButton.disabled = capturedLinks.length === 0;
   
-  // 更新单篇采集相关按钮状态
+  // 更新单篇收藏相关按钮状态
   singleExportButton.disabled = capturedNote === null;
   singleSyncButton.disabled = capturedNote === null;
   downloadMediaBtn.disabled = capturedNote === null;
-  clearSingleCaptureBtn.disabled = capturedNote === null; // 添加单篇采集清除按钮的状态管理
+  clearSingleCaptureBtn.disabled = capturedNote === null; // 添加单篇收藏清除按钮的状态管理
   
-  // 更新博主信息相关按钮状态
+  // 更新创作者信息相关按钮状态
   clearBloggerButton.disabled = capturedBloggerInfo === null;
   exportBloggerButton.disabled = capturedBloggerInfo === null;
   syncBloggerButton.disabled = capturedBloggerInfo === null;
 }
 
-// 开始采集函数
+// 开始收藏函数
 function startCapture() {
-  // 清空之前的采集结果
+  // 清空之前的收藏结果
   capturedLinks = [];
   updateCapturedLinksDisplay();
   
-  // 更明显的采集状态提示
-  showStatus('正在采集中，请稍后...\n采集过程中请勿关闭插件窗口');
+  // 更明显的收藏状态提示
+  showStatus('正在收藏中，请稍后...\n收藏过程中请勿关闭插件窗口');
   
-  // 禁用开始采集按钮防止重复点击
+  // 禁用开始收藏按钮防止重复点击
   const captureBtn = document.getElementById('startCaptureBtn');
   const originalText = captureBtn.textContent;
   captureBtn.disabled = true;
-  captureBtn.textContent = '采集ing...';
+  captureBtn.textContent = '收藏ing...';
   
-  // 向content script发送消息，开始采集
+  // 向content script发送消息，开始收藏
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
     chrome.tabs.sendMessage(tabs[0].id, {action: 'startCapture'}, function(response) {
       // 恢复按钮状态
@@ -469,31 +469,31 @@ function startCapture() {
       captureBtn.textContent = originalText;
       
       if (chrome.runtime.lastError) {
-        showStatus('采集失败，请确保您在小红书博主主页上使用此功能');
+        showStatus('收藏失败，请确保您在平台创作者主页上使用此功能');
         return;
       }
       
       // 检查response是否包含links字段来判断成功
       if (response && response.links && response.links.length > 0) {
         capturedLinks = response.links;
-        showStatus(`成功采集到 ${capturedLinks.length} 条笔记`);
+        showStatus(`成功收藏到 ${capturedLinks.length} 条笔记`);
         updateCapturedLinksDisplay();
         checkAndUpdateButtonStatus();
       } else {
         // 正确显示错误信息
-        showStatus('采集失败：' + (response && response.error ? response.error : '未能采集到任何链接，请确保在博主主页上使用此功能，并等待页面完全加载'));
+        showStatus('收藏失败：' + (response && response.error ? response.error : '未能收藏到任何链接，请确保在创作者主页上使用此功能，并等待页面完全加载'));
       }
     });
   });
 }
 
-// 更新采集的链接展示
+// 更新收藏的链接展示
 function updateCapturedLinksDisplay() {
   const container = document.getElementById('capturedLinksContainer');
   container.innerHTML = '';
   
   if (capturedLinks.length === 0) {
-    container.innerHTML = '<p style="text-align: center; color: #999; margin: 20px 0;">暂无采集的笔记</p>';
+    container.innerHTML = '<p style="text-align: center; color: #999; margin: 20px 0;">暂无收藏的笔记</p>';
     return;
   }
   
@@ -574,7 +574,7 @@ function exportToExcel() {
     
     // 设置下载属性
     link.setAttribute('href', url);
-    link.setAttribute('download', `小红书笔记_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.csv`);
+    link.setAttribute('download', `平台笔记_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.csv`);
     link.style.visibility = 'hidden';
     
     // 添加到文档并触发下载
@@ -627,7 +627,7 @@ function syncToFeishu() {
       
       return {
         fields: {
-          "博主": note.author || "未知作者",
+          "创作者": note.author || "未知作者",
           "标题": note.title || "无标题",
           "点赞数": note.likes || 0,
           "笔记链接": {
@@ -851,7 +851,7 @@ async function downloadAllMedia() {
     let failedCount = 0;
     
     // 为文件夹生成默认名称
-    const noteTitle = capturedNote.title ? capturedNote.title.replace(/[^\w\u4e00-\u9fa5]/g, '_').substring(0, 15) : '小红书笔记';
+    const noteTitle = capturedNote.title ? capturedNote.title.replace(/[^\w\u4e00-\u9fa5]/g, '_').substring(0, 15) : '平台笔记';
     
     mediaUrls.forEach((url, index) => {
       // 为文件生成有意义的名称
@@ -1079,25 +1079,25 @@ function loadConfiguration(silent = false) {
   return {};
 }
 
-// 优化单篇采集函数
+// 优化单篇收藏函数
 function startSingleCapture() {
-  // 清空之前的采集结果，确保完全重置对象
+  // 清空之前的收藏结果，确保完全重置对象
   capturedNote = null;
   updateSingleNoteDisplay();
   
-  // 显示采集状态提示
-  showStatus('正在采集单篇笔记，请稍后...');
+  // 显示收藏状态提示
+  showStatus('正在收藏单条内容，请稍后...');
   
-  // 禁用开始采集按钮防止重复点击
+  // 禁用开始收藏按钮防止重复点击
   const captureBtn = document.getElementById('startSingleCaptureBtn');
   const originalText = captureBtn.textContent;
   captureBtn.disabled = true;
-  captureBtn.textContent = '采集ing...';
+  captureBtn.textContent = '收藏ing...';
   
   // 设置超时处理
   const timeoutId = setTimeout(() => {
     if (captureBtn.disabled) {
-      showStatus('采集超时，请刷新页面后重试');
+      showStatus('收藏超时，请刷新页面后重试');
       captureBtn.disabled = false;
       captureBtn.textContent = originalText;
     }
@@ -1110,14 +1110,14 @@ function startSingleCapture() {
       clearTimeout(timeoutId);
       
       if (chrome.runtime.lastError) {
-        showStatus('请确保您在小红书网页版上使用此功能');
+        showStatus('请确保您在平台网页版上使用此功能');
         captureBtn.disabled = false;
         captureBtn.textContent = originalText;
         return;
       }
       
       if (!response || !response.isNotePage) {
-        showStatus('请确保在小红书笔记详情页上使用此功能');
+        showStatus('请确保在平台笔记详情页上使用此功能');
         captureBtn.disabled = false;
         captureBtn.textContent = originalText;
         return;
@@ -1160,51 +1160,51 @@ function startSingleCapture() {
             capturedNote.videoUrl = response.data.videoUrl;
           }
           
-          showStatus('成功采集到单篇笔记');
+          showStatus('成功收藏到单条内容');
           updateSingleNoteDisplay();
           checkAndUpdateButtonStatus();
         } else {
-          showStatus('采集失败：' + (response && response.error ? response.error : '未能提取到笔记数据'));
+          showStatus('收藏失败：' + (response && response.error ? response.error : '未能提取到笔记数据'));
         }
       });
     });
   });
 }
 
-// 开始采集博主信息函数
+// 开始收藏创作者信息函数
 function startBloggerCapture() {
-  // 发送消息到content.js开始采集博主信息
+  // 发送消息到content.js开始收藏创作者信息
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
     if (tabs.length > 0) {
-      // 显示采集状态
-      showStatus('正在采集博主信息...');
+      // 显示收藏状态
+      showStatus('正在收藏创作者信息...');
       
-      // 向content.js发送消息开始采集
+      // 向content.js发送消息开始收藏
       chrome.tabs.sendMessage(tabs[0].id, {action: 'startCaptureBloggerInfo'}, function(response) {
         if (chrome.runtime.lastError) {
-          showStatus('采集失败: 无法与页面通信，请刷新页面后重试');
+          showStatus('收藏失败: 无法与页面通信，请刷新页面后重试');
         }
       });
     } else {
-      showStatus('请先选择一个小红书页面');
+      showStatus('请先选择一个平台页面');
     }
   });
 }
 
-// 清空博主信息函数
+// 清空创作者信息函数
 function clearBloggerInfo() {
-  if (confirm('确定要清空采集的博主信息吗？')) {
+  if (confirm('确定要清空收藏的创作者信息吗？')) {
     capturedBloggerInfo = null;
     updateBloggerInfoDisplay();
     checkAndUpdateButtonStatus();
-    showStatus('已清空博主信息');
+    showStatus('已清空创作者信息');
   }
 }
 
-// 导出博主信息到Excel
+// 导出创作者信息到Excel
 function exportBloggerInfoToExcel() {
   if (capturedBloggerInfo === null) {
-    showStatus('没有可导出的博主信息数据');
+    showStatus('没有可导出的创作者信息数据');
     return;
   }
   
@@ -1212,9 +1212,9 @@ function exportBloggerInfoToExcel() {
   
   try {
     // 准备CSV数据 - 包含所有要求的字段
-    let csvContent = '\ufeff博主名称,头像链接,小红书号,简介,粉丝数,博主主页链接,采集时间\n'; // BOM字符确保中文正常显示
+    let csvContent = '\ufeff创作者名称,头像链接,平台号,简介,粉丝数,创作者主页链接,收藏时间\n'; // BOM字符确保中文正常显示
     
-    // 获取博主信息
+    // 获取创作者信息
     const bloggerInfo = capturedBloggerInfo;
     
     // 处理CSV中的特殊字符
@@ -1242,7 +1242,7 @@ function exportBloggerInfoToExcel() {
     
     // 设置下载属性
     link.setAttribute('href', url);
-    link.setAttribute('download', '小红书博主信息_' + new Date().toLocaleDateString('zh-CN').replace(/\//g, '-') + '.csv');
+    link.setAttribute('download', '平台创作者信息_' + new Date().toLocaleDateString('zh-CN').replace(/\//g, '-') + '.csv');
     link.style.visibility = 'hidden';
     
     // 添加到文档并触发下载
@@ -1250,17 +1250,17 @@ function exportBloggerInfoToExcel() {
     link.click();
     document.body.removeChild(link);
     
-    showStatus('成功导出博主信息到Excel');
+    showStatus('成功导出创作者信息到Excel');
   } catch (error) {
     console.error('导出Excel时出错:', error);
     showStatus('导出Excel失败，请重试');
   }
 }
 
-// 同步博主信息到飞书
+// 同步创作者信息到飞书
 function syncBloggerInfoToFeishu() {
   if (capturedBloggerInfo === null) {
-    showStatus('没有可同步的博主信息数据');
+    showStatus('没有可同步的创作者信息数据');
     return;
   }
   
@@ -1278,22 +1278,22 @@ function syncBloggerInfoToFeishu() {
   
   // 准备同步数据
   try {
-    // 获取博主信息
+    // 获取创作者信息
     const bloggerInfo = capturedBloggerInfo;
     
     // 构建records数组 - 完全按照用户要求的格式
     const records = [{
       "fields": {
-        "博主名称": bloggerInfo.bloggerName || bloggerInfo.name || "",
+        "创作者名称": bloggerInfo.bloggerName || bloggerInfo.name || "",
         "头像链接": bloggerInfo.avatarUrl || bloggerInfo.avatar || "",
-        "小红书号": bloggerInfo.bloggerId || bloggerInfo.userId || bloggerInfo.xiaohongshuId || "",
+        "平台号": bloggerInfo.bloggerId || bloggerInfo.userId || bloggerInfo.xiaohongshuId || "",
         "简介": bloggerInfo.description || bloggerInfo.bio || "",
         "粉丝数": bloggerInfo.followersCount || bloggerInfo.fansCount || 0,
         "主页链接": {
           "link": bloggerInfo.bloggerUrl || bloggerInfo.profileUrl || bloggerInfo.url || "",
           "text": "查看原文"
         },
-        "采集时间": new Date().getTime() // 中国日期的时间戳格式
+        "收藏时间": new Date().getTime() // 中国日期的时间戳格式
       }
     }];
     
@@ -1386,20 +1386,20 @@ function syncBloggerInfoToFeishu() {
   }
 }
 
-// 更新单篇笔记展示
+// 更新单条内容展示
 function updateSingleNoteDisplay() {
   const container = document.getElementById('singleCapturedNotesContainer');
   container.innerHTML = '';
   
   if (capturedNote === null) {
-    container.innerHTML = '<p style="text-align: center; color: #999; margin: 20px 0;">暂无采集的笔记</p>';
+    container.innerHTML = '<p style="text-align: center; color: #999; margin: 20px 0;">暂无收藏的笔记</p>';
     return;
   }
   
   const card = document.createElement('div');
   card.className = 'card';
   
-  // 提取图片显示 - 与博主笔记保持一致的逻辑
+  // 提取图片显示 - 与创作者笔记保持一致的逻辑
   const imageUrls = capturedNote.imageUrls ? capturedNote.imageUrls.split(',') : [];
   const displayImage = imageUrls.length > 0 ? imageUrls[0] : (capturedNote.videoUrl ? capturedNote.videoUrl : '');
   
@@ -1422,18 +1422,18 @@ function updateSingleNoteDisplay() {
   container.appendChild(card);
 }
 
-// 更新博主信息展示
+// 更新创作者信息展示
 function updateBloggerInfoDisplay() {
   const container = document.getElementById('bloggerInfoContainer');
   container.innerHTML = '';
   
   if (capturedBloggerInfo === null) {
-    container.innerHTML = '<p style="text-align: center; color: #999; margin: 20px 0;">暂无采集的博主信息</p>';
+    container.innerHTML = '<p style="text-align: center; color: #999; margin: 20px 0;">暂无收藏的创作者信息</p>';
     return;
   }
   
   const card = document.createElement('div');
-  card.className = 'card'; // 使用与博主笔记相同的卡片样式
+  card.className = 'card'; // 使用与创作者笔记相同的卡片样式
   
   const bloggerUrl = capturedBloggerInfo.bloggerUrl || capturedBloggerInfo.profileUrl || capturedBloggerInfo.url;
   
@@ -1445,7 +1445,7 @@ function updateBloggerInfoDisplay() {
       <a href="${bloggerUrl}" class="card-title" target="_blank" rel="noopener noreferrer">
         ${capturedBloggerInfo.bloggerName || capturedBloggerInfo.name}
       </a>
-      <div class="card-author">小红书号: ${capturedBloggerInfo.bloggerId || capturedBloggerInfo.userId || capturedBloggerInfo.xiaohongshuId}</div>
+      <div class="card-author">平台号: ${capturedBloggerInfo.bloggerId || capturedBloggerInfo.userId || capturedBloggerInfo.xiaohongshuId}</div>
       <div class="card-stats">
         <span class="stat-item">粉丝数: ${capturedBloggerInfo.followersCount || capturedBloggerInfo.fansCount}</span>
       </div>
@@ -1455,10 +1455,10 @@ function updateBloggerInfoDisplay() {
   container.appendChild(card);
 }
 
-// 添加清空单篇采集结果的函数
+// 添加清空单篇收藏结果的函数
 function clearSingleCapture() {
   // 显示确认对话框，防止用户误操作
-  if (confirm('确定要清空单篇采集的笔记吗？此操作不可撤销。')) {
+  if (confirm('确定要清空单篇收藏的笔记吗？此操作不可撤销。')) {
     // 完全清空capturedNote对象，确保不残留任何属性
     capturedNote = null;
     
@@ -1469,11 +1469,11 @@ function clearSingleCapture() {
     checkAndUpdateButtonStatus();
     
     // 显示状态信息
-    showStatus('已清空单篇采集的笔记');
+    showStatus('已清空单篇收藏的笔记');
   }
 }
 
-// 导出单篇笔记到Excel
+// 导出单条内容到Excel
 function exportSingleNoteToExcel() {
   if (capturedNote === null) {
     showStatus('没有可导出的笔记数据');
@@ -1484,7 +1484,7 @@ function exportSingleNoteToExcel() {
   
   try {
     // 准备CSV数据 - 包含所有要求的字段
-    let csvContent = '\ufeff标题,笔记链接,笔记类型,作者,正文,话题标签,封面链接,全部图片链接,视频链接,点赞数,收藏数,评论数,发布时间,采集时间\n'; // BOM字符确保中文正常显示
+    let csvContent = '\ufeff标题,笔记链接,笔记类型,作者,正文,话题标签,封面链接,全部图片链接,视频链接,点赞数,收藏数,评论数,发布时间,收藏时间\n'; // BOM字符确保中文正常显示
     
     // 处理CSV中的特殊字符
     const title = capturedNote.title ? capturedNote.title.replace(/"/g, '""').replace(/,/g, '，') : '无标题';
@@ -1528,7 +1528,7 @@ function exportSingleNoteToExcel() {
     
     // 设置下载属性
     link.setAttribute('href', urlBlob);
-    link.setAttribute('download', `小红书单篇笔记_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.csv`);
+    link.setAttribute('download', `平台单条内容_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.csv`);
     link.style.visibility = 'hidden';
     
     // 添加到文档并触发下载
@@ -1536,14 +1536,14 @@ function exportSingleNoteToExcel() {
     link.click();
     document.body.removeChild(link);
     
-    showStatus('成功导出单篇笔记到Excel');
+    showStatus('成功导出单条内容到Excel');
   } catch (error) {
     console.error('导出Excel时出错:', error);
     showStatus('导出Excel失败，请重试');
   }
 }
 
-// 同步单篇笔记到飞书
+// 同步单条内容到飞书
 function syncSingleNoteToFeishu() {
   if (capturedNote === null) {
     showStatus('没有可同步的笔记数据');
@@ -1579,7 +1579,7 @@ function syncSingleNoteToFeishu() {
     
     // 首先创建基本的fields对象
     const fields = {
-      "博主": capturedNote.author || "未知作者",
+      "创作者": capturedNote.author || "未知作者",
       "封面链接": capturedNote.imageUrls ? capturedNote.imageUrls.split(',')[0] : "",
       "标题": capturedNote.title || "无标题",
       "原文链接": {
@@ -1593,8 +1593,8 @@ function syncSingleNoteToFeishu() {
       "收藏数": capturedNote.collects || 0,
       "评论数": capturedNote.comments || 0,
       "类型": capturedNote.noteType || (capturedNote.videoUrl ? "视频" : "图文"),
-      "域名": "小红书",
-      "采集时间": new Date().getTime(), // 中国日期的时间戳格式
+      "域名": "平台",
+      "收藏时间": new Date().getTime(), // 中国日期的时间戳格式
       "发布时间": capturedNote.publishDate ? (() => {
         try {
           console.log('=== sidebar.js日期转换调试 ===');
@@ -1840,7 +1840,7 @@ setTimeout(function() {
 // Edit Business API 同步功能（覆盖原飞书同步）
 // ============================================
 
-// 同步单篇笔记到 Edit Business
+// 同步单条内容到 Edit Business
 function syncSingleNoteToFeishu() {
   if (capturedNote === null) {
     showStatus('没有可同步的笔记数据');
@@ -1943,14 +1943,14 @@ function syncToFeishu() {
   });
 }
 
-// 同步博主信息到 Edit Business
+// 同步创作者信息到 Edit Business
 function syncBloggerInfoToFeishu() {
   if (capturedBloggerInfo === null) {
-    showStatus('没有可同步的博主信息');
+    showStatus('没有可同步的创作者信息');
     return;
   }
 
-  showStatus('正在同步博主信息，请稍候...');
+  showStatus('正在同步创作者信息，请稍候...');
 
   const apiKey = localStorage.getItem('edit-business-api-key');
   if (!apiKey) {
@@ -1979,13 +1979,13 @@ function syncBloggerInfoToFeishu() {
   .then(response => response.json())
   .then(result => {
     if (result.code === 0 || result.success) {
-      showStatus('✅ 博主信息同步成功！');
+      showStatus('✅ 创作者信息同步成功！');
     } else {
       showStatus('同步失败：' + (result.message || '未知错误'));
     }
   })
   .catch(error => {
-    console.error('博主信息同步失败:', error);
+    console.error('创作者信息同步失败:', error);
     showStatus('同步失败：' + error.message);
   });
 }
@@ -2044,8 +2044,8 @@ async function getQiniuToken() {
 }
 
 /**
- * 从小红书下载图片（使用浏览器上下文，有cookies）
- * @param {string} imageUrl - 小红书图片URL
+ * 从平台下载图片（使用浏览器上下文，有cookies）
+ * @param {string} imageUrl - 平台图片URL
  * @returns {Promise<Blob>}
  */
 async function downloadImageFromXhs(imageUrl) {
@@ -2184,7 +2184,7 @@ async function processImageUrls(imageUrls, progressCallback = null) {
 // 修改后的同步函数（使用七牛云CDN URL）
 // ============================================
 
-// 同步单篇笔记到 Edit Business（使用七牛云）
+// 同步单条内容到 Edit Business（使用七牛云）
 async function syncSingleNoteToFeishu() {
   if (capturedNote === null) {
     showStatus('没有可同步的笔记数据');
