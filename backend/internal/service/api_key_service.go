@@ -14,9 +14,15 @@ var (
 )
 
 // GetOrCreateAPIKey gets existing API key or creates a new one for the user
-func (s *APIKeyService) GetOrCreateAPIKey(userID string) (*APIKeyResponse, error) {
-	// Try to get existing API key directly by userID
-	apiKeys, err := s.apiKeyRepo.GetByUserID(userID)
+func (s *APIKeyService) GetOrCreateAPIKey(authCenterUserID string) (*APIKeyResponse, error) {
+	// Get user by auth center user ID first
+	user, err := s.userRepo.GetByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Try to get existing API key by user ID
+	apiKeys, err := s.apiKeyRepo.GetByUserID(user.ID)
 	if err == nil && len(apiKeys) > 0 {
 		// Return first existing key
 		apiKey := apiKeys[0]
@@ -34,14 +40,8 @@ func (s *APIKeyService) GetOrCreateAPIKey(userID string) (*APIKeyResponse, error
 	// No API key exists, create one automatically
 	keyString := s.apiKeyRepo.GenerateKey()
 
-	// Parse userID as UUID
-	userUUID, err := s.userRepo.GetByID(userID)
-	if err != nil {
-		return nil, err
-	}
-
 	apiKey := &model.APIKey{
-		UserID:    userUUID.ID,
+		UserID:    user.ID,
 		Name:      "默认API Key",
 		Key:       keyString,
 		IsActive:  true,
