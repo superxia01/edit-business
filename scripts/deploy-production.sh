@@ -88,9 +88,9 @@ file ${BINARY_NAME} | grep -q "ELF 64-bit" || {
   exit 1
 }
 
-# 上传二进制
+# 上传到临时文件（避免覆盖运行中二进制导致 scp 失败）
 echo "上传二进制文件到服务器..."
-scp ${BINARY_NAME} ${SERVER}:${REMOTE_DIR}/
+scp ${BINARY_NAME} ${SERVER}:${REMOTE_DIR}/${BINARY_NAME}.new
 
 # 重启服务
 echo "重启服务..."
@@ -104,9 +104,9 @@ if [ -f ${BINARY_NAME} ]; then
   mv ${BINARY_NAME} \${BACKUP_NAME}
 fi
 
-# 重命名新二进制
+# 启用新二进制
 echo "启用新版本..."
-mv ${BINARY_NAME}-new ${BINARY_NAME} || mv ${BINARY_NAME} ${BINARY_NAME}
+mv ${BINARY_NAME}.new ${BINARY_NAME}
 
 # 重启服务
 sudo systemctl restart ${SYSTEM_NAME}

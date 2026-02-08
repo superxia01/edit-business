@@ -1,9 +1,13 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/keenchase/edit-business/internal/model"
 	"github.com/keenchase/edit-business/internal/repository"
 )
+
+var ErrBloggerNotFound = errors.New("blogger not found")
 
 // BloggerService 博主服务
 type BloggerService struct {
@@ -81,19 +85,31 @@ func (s *BloggerService) Create(authCenterUserID string, req *CreateBloggerReque
 	return blogger, nil
 }
 
-// GetByID 根据 ID 获取博主信息
-func (s *BloggerService) GetByID(id string) (*model.Blogger, error) {
-	return s.bloggerRepo.GetByID(id)
+// GetByID 根据 ID 获取博主信息（校验归属）
+func (s *BloggerService) GetByID(authCenterUserID, id string) (*model.Blogger, error) {
+	user, err := s.settingsService.GetUserByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return nil, err
+	}
+	return s.bloggerRepo.GetByID(user.ID, id)
 }
 
-// GetByXhsID 根据小红书 ID 获取博主信息
-func (s *BloggerService) GetByXhsID(xhsID string) (*model.Blogger, error) {
-	return s.bloggerRepo.GetByXhsID(xhsID)
+// GetByXhsID 根据小红书 ID 获取博主信息（校验归属）
+func (s *BloggerService) GetByXhsID(authCenterUserID, xhsID string) (*model.Blogger, error) {
+	user, err := s.settingsService.GetUserByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return nil, err
+	}
+	return s.bloggerRepo.GetByUserIDAndXhsID(user.ID, xhsID)
 }
 
-// List 获取博主列表
-func (s *BloggerService) List(req *ListBloggersRequest) (*ListBloggersResponse, error) {
-	// 设置默认值
+// List 获取博主列表（按用户隔离）
+func (s *BloggerService) List(authCenterUserID string, req *ListBloggersRequest) (*ListBloggersResponse, error) {
+	user, err := s.settingsService.GetUserByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return nil, err
+	}
+
 	if req.Page < 1 {
 		req.Page = 1
 	}
@@ -103,7 +119,7 @@ func (s *BloggerService) List(req *ListBloggersRequest) (*ListBloggersResponse, 
 
 	offset := (req.Page - 1) * req.Size
 
-	bloggers, total, err := s.bloggerRepo.List(offset, req.Size)
+	bloggers, total, err := s.bloggerRepo.List(user.ID, offset, req.Size)
 	if err != nil {
 		return nil, err
 	}
@@ -196,12 +212,24 @@ func (s *BloggerService) BatchCreate(authCenterUserID string, reqs []*CreateBlog
 	return s.bloggerRepo.BatchCreate(bloggers)
 }
 
-// Update 更新博主信息
-func (s *BloggerService) Update(blogger *model.Blogger) error {
+// Update 更新博主信息（校验归属）
+func (s *BloggerService) Update(authCenterUserID string, blogger *model.Blogger) error {
+	user, err := s.settingsService.GetUserByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return err
+	}
+	existing, err := s.bloggerRepo.GetByID(user.ID, blogger.ID)
+	if err != nil || existing == nil {
+		return ErrBloggerNotFound
+	}
 	return s.bloggerRepo.Update(blogger)
 }
 
-// Delete 删除博主信息
-func (s *BloggerService) Delete(id string) error {
-	return s.bloggerRepo.Delete(id)
+// Delete 删除博主信息（校验归属）
+func (s *BloggerService) Delete(authCenterUserID, id string) error {
+	user, err := s.settingsService.GetUserByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return err
+	}
+	return s.bloggerRepo.Delete(user.ID, id)
 }

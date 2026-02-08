@@ -31,6 +31,28 @@ chrome.action.onClicked.addListener((tab) => {
 
 // 监听来自popup或侧边栏的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // 可以在这里添加共享的后台功能
+  if (message.action === 'fetchImage') {
+    // Background 有 host_permissions，可跨域拉取 xhscdn 图片
+    const imageUrl = message.imageUrl;
+    if (!imageUrl || typeof imageUrl !== 'string') {
+      sendResponse({ success: false, error: '缺少图片URL' });
+      return true;
+    }
+    fetch(imageUrl, { mode: 'cors' })
+      .then(res => {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.blob();
+      })
+      .then(blob => {
+        const reader = new FileReader();
+        reader.onloadend = () => sendResponse({ success: true, base64: reader.result });
+        reader.onerror = () => sendResponse({ success: false, error: 'Blob 转 base64 失败' });
+        reader.readAsDataURL(blob);
+      })
+      .catch(err => {
+        sendResponse({ success: false, error: err.message || '拉取图片失败' });
+      });
+    return true; // 保持消息通道开启，用于异步 sendResponse
+  }
   return true;
 });

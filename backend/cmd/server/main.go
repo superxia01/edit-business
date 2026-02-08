@@ -43,7 +43,7 @@ func main() {
 	noteService := service.NewNoteService(noteRepo, userSettingsService)
 	bloggerService := service.NewBloggerService(bloggerRepo, userSettingsService)
 	userService := service.NewUserService(userRepo)
-	statsService := service.NewStatsService(noteRepo, bloggerRepo)
+	statsService := service.NewStatsService(noteRepo, bloggerRepo, userSettingsService)
 	apiKeyService := service.NewAPIKeyService(apiKeyRepo, userRepo)
 	authCenterService := service.NewAuthCenterService() // 账号中心服务
 

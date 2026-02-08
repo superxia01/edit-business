@@ -59,7 +59,7 @@ func (h *BloggerHandler) Create(c *gin.Context) {
 	SuccessResponse(c, blogger)
 }
 
-// GetByID 根据 ID 获取博主信息
+// GetByID 根据 ID 获取博主信息（校验归属）
 // @Summary 获取博主详情
 // @Description 根据 ID 获取博主详情
 // @Tags bloggers
@@ -69,13 +69,19 @@ func (h *BloggerHandler) Create(c *gin.Context) {
 // @Success 200 {object} Response
 // @Router /api/v1/bloggers/{id} [get]
 func (h *BloggerHandler) GetByID(c *gin.Context) {
+	authCenterUserID, exists := c.Get("authCenterUserID")
+	if !exists {
+		c.JSON(401, Response{Code: 401, Message: "Unauthorized"})
+		return
+	}
+
 	id := c.Param("id")
 	if id == "" {
 		BadRequest(c, "id is required")
 		return
 	}
 
-	blogger, err := h.bloggerService.GetByID(id)
+	blogger, err := h.bloggerService.GetByID(authCenterUserID.(string), id)
 	if err != nil {
 		NotFound(c, "blogger not found")
 		return
@@ -84,7 +90,7 @@ func (h *BloggerHandler) GetByID(c *gin.Context) {
 	SuccessResponse(c, blogger)
 }
 
-// GetByXhsID 根据小红书 ID 获取博主信息
+// GetByXhsID 根据小红书 ID 获取博主信息（校验归属）
 // @Summary 根据 xhs_id 获取博主详情
 // @Description 根据小红书 ID 获取博主详情
 // @Tags bloggers
@@ -94,13 +100,19 @@ func (h *BloggerHandler) GetByID(c *gin.Context) {
 // @Success 200 {object} Response
 // @Router /api/v1/bloggers/xhs/{xhsId} [get]
 func (h *BloggerHandler) GetByXhsID(c *gin.Context) {
+	authCenterUserID, exists := c.Get("authCenterUserID")
+	if !exists {
+		c.JSON(401, Response{Code: 401, Message: "Unauthorized"})
+		return
+	}
+
 	xhsID := c.Param("xhsId")
 	if xhsID == "" {
 		BadRequest(c, "xhsId is required")
 		return
 	}
 
-	blogger, err := h.bloggerService.GetByXhsID(xhsID)
+	blogger, err := h.bloggerService.GetByXhsID(authCenterUserID.(string), xhsID)
 	if err != nil {
 		NotFound(c, "blogger not found")
 		return
@@ -109,7 +121,7 @@ func (h *BloggerHandler) GetByXhsID(c *gin.Context) {
 	SuccessResponse(c, blogger)
 }
 
-// List 获取博主列表
+// List 获取博主列表（按用户隔离）
 // @Summary 获取博主列表
 // @Description 分页获取博主列表，按粉丝数排序
 // @Tags bloggers
@@ -120,25 +132,25 @@ func (h *BloggerHandler) GetByXhsID(c *gin.Context) {
 // @Success 200 {object} Response
 // @Router /api/v1/bloggers [get]
 func (h *BloggerHandler) List(c *gin.Context) {
-	var req service.ListBloggersRequest
+	authCenterUserID, exists := c.Get("authCenterUserID")
+	if !exists {
+		c.JSON(401, Response{Code: 401, Message: "Unauthorized"})
+		return
+	}
 
-	// 解析分页参数
+	var req service.ListBloggersRequest
 	if pageStr := c.Query("page"); pageStr != "" {
-		page, err := strconv.Atoi(pageStr)
-		if err == nil {
+		if page, err := strconv.Atoi(pageStr); err == nil {
 			req.Page = page
 		}
 	}
-
 	if sizeStr := c.Query("size"); sizeStr != "" {
-		size, err := strconv.Atoi(sizeStr)
-		if err == nil {
+		if size, err := strconv.Atoi(sizeStr); err == nil {
 			req.Size = size
 		}
 	}
 
-	// 调用服务层
-	result, err := h.bloggerService.List(&req)
+	result, err := h.bloggerService.List(authCenterUserID.(string), &req)
 	if err != nil {
 		InternalError(c, err.Error())
 		return
@@ -234,7 +246,7 @@ func (h *BloggerHandler) UpsertByXhsID(c *gin.Context) {
 	SuccessResponse(c, blogger)
 }
 
-// Update 更新博主信息
+// Update 更新博主信息（校验归属）
 // @Summary 更新博主信息
 // @Description 更新博主信息
 // @Tags bloggers
@@ -245,14 +257,19 @@ func (h *BloggerHandler) UpsertByXhsID(c *gin.Context) {
 // @Success 200 {object} Response
 // @Router /api/v1/bloggers/{id} [put]
 func (h *BloggerHandler) Update(c *gin.Context) {
+	authCenterUserID, exists := c.Get("authCenterUserID")
+	if !exists {
+		c.JSON(401, Response{Code: 401, Message: "Unauthorized"})
+		return
+	}
+
 	id := c.Param("id")
 	if id == "" {
 		BadRequest(c, "id is required")
 		return
 	}
 
-	// 获取现有博主
-	blogger, err := h.bloggerService.GetByID(id)
+	blogger, err := h.bloggerService.GetByID(authCenterUserID.(string), id)
 	if err != nil {
 		NotFound(c, "blogger not found")
 		return
@@ -263,12 +280,14 @@ func (h *BloggerHandler) Update(c *gin.Context) {
 		BadRequest(c, err.Error())
 		return
 	}
-
-	// 更新字段（这里简化处理）
 	_ = req
 
-	err = h.bloggerService.Update(blogger)
+	err = h.bloggerService.Update(authCenterUserID.(string), blogger)
 	if err != nil {
+		if err == service.ErrBloggerNotFound {
+			NotFound(c, "blogger not found")
+			return
+		}
 		InternalError(c, err.Error())
 		return
 	}
@@ -276,7 +295,7 @@ func (h *BloggerHandler) Update(c *gin.Context) {
 	SuccessResponse(c, blogger)
 }
 
-// Delete 删除博主信息
+// Delete 删除博主信息（校验归属）
 // @Summary 删除博主信息
 // @Description 根据 ID 删除博主
 // @Tags bloggers
@@ -286,13 +305,19 @@ func (h *BloggerHandler) Update(c *gin.Context) {
 // @Success 200 {object} Response
 // @Router /api/v1/bloggers/{id} [delete]
 func (h *BloggerHandler) Delete(c *gin.Context) {
+	authCenterUserID, exists := c.Get("authCenterUserID")
+	if !exists {
+		c.JSON(401, Response{Code: 401, Message: "Unauthorized"})
+		return
+	}
+
 	id := c.Param("id")
 	if id == "" {
 		BadRequest(c, "id is required")
 		return
 	}
 
-	err := h.bloggerService.Delete(id)
+	err := h.bloggerService.Delete(authCenterUserID.(string), id)
 	if err != nil {
 		InternalError(c, err.Error())
 		return

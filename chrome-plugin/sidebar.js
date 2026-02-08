@@ -20,6 +20,8 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 let capturedLinks = [];
 let capturedNote = null; // 单条内容收藏结果
 let capturedBloggerInfo = null; // 创作者信息收藏结果
+let capturedNoteTabId = null; // 单条采集时的标签页 ID，用于同步时下载图片
+let capturedLinksTabId = null; // 批量采集时的标签页 ID
 
 // 防止重复初始化的标志
 let isInitialized = false;
@@ -190,8 +192,7 @@ function initTabSwitching() {
       e.stopPropagation();
       console.log('点击了设置Tab', configTab, configContent);
       switchTab(configTab, configContent);
-      // 读取本地配置并填充到输入框
-      loadConfiguration();
+      loadApiKey();
     };
     
     // 单篇收藏Tab点击事件
@@ -293,27 +294,11 @@ function initButtonListeners() {
       });
     }
     
-    // 同步飞书按钮
+    // 同步按钮
     const syncFeishuBtn = document.getElementById('syncFeishuBtn');
     if (syncFeishuBtn) {
       syncFeishuBtn.addEventListener('click', function() {
         syncToFeishu();
-      });
-    }
-    
-    // 验证用户按钮
-    const checkUserBtn = document.getElementById('checkUserBtn');
-    if (checkUserBtn) {
-      checkUserBtn.addEventListener('click', function() {
-        verifyUserOrder();
-      });
-    }
-    
-    // 保存配置按钮
-    const saveConfigBtn = document.getElementById('saveConfigBtn');
-    if (saveConfigBtn) {
-      saveConfigBtn.addEventListener('click', function() {
-        saveConfiguration();
       });
     }
     
@@ -379,7 +364,7 @@ function initButtonListeners() {
       });
     }
     
-    // 添加创作者信息页面的同步飞书按钮事件监听
+    // 添加创作者信息页面的同步按钮事件监听
     const syncBloggerFeishuBtn = document.getElementById('syncBloggerFeishuBtn');
     if (syncBloggerFeishuBtn) {
       syncBloggerFeishuBtn.addEventListener('click', function() {
@@ -400,6 +385,7 @@ function clearAllNotes() {
   if (confirm('确定要清空所有收藏的笔记吗？此操作不可撤销。')) {
     // 清空capturedLinks数组
     capturedLinks = [];
+    capturedLinksTabId = null;
     
     // 更新UI显示，移除所有收藏结果卡片
     updateCapturedLinksDisplay();
@@ -450,6 +436,7 @@ function checkAndUpdateButtonStatus() {
 function startCapture() {
   // 清空之前的收藏结果
   capturedLinks = [];
+  capturedLinksTabId = null;
   updateCapturedLinksDisplay();
   
   // 更明显的收藏状态提示
@@ -476,6 +463,7 @@ function startCapture() {
       // 检查response是否包含links字段来判断成功
       if (response && response.links && response.links.length > 0) {
         capturedLinks = response.links;
+        capturedLinksTabId = tabs[0].id; // 保存标签页 ID，同步时用于下载图片
         showStatus(`成功收藏到 ${capturedLinks.length} 条笔记`);
         updateCapturedLinksDisplay();
         checkAndUpdateButtonStatus();
@@ -598,491 +586,128 @@ function showStatus(message) {
   // 移除自动清除逻辑，让提示内容一直显示直到下一次操作
 }
 
-// 同步飞书函数 - 完全符合需求的实现
-function syncToFeishu() {
-  if (capturedLinks.length === 0) {
-    showStatus('没有可同步的笔记数据');
-    return;
-  }
-  
-  showStatus('正在同步到飞书，请稍候...');
-  
-  // 获取飞书配置
-  const config = loadConfiguration(true);
-  
-  // 检查配置是否完整
-  if (!config.ordeid || !config.basetoken || !config.blogger_noteurl) {
-    showStatus('请先配置完整的飞书信息');
-    switchTab(document.getElementById('configTab'), document.getElementById('configContent'));
-    return;
-  }
-  
-  // 准备同步数据
-  try {
-    // 构建records数组 - 修复反引号问题
-    const records = capturedLinks.map(note => {
-      // 确保URL中不包含反引号
-      const cleanUrl = note.url ? note.url.replace(/`/g, '') : '';
-      const cleanImageUrl = note.image ? note.image.replace(/`/g, '') : '';
-      
-      return {
-        fields: {
-          "创作者": note.author || "未知作者",
-          "标题": note.title || "无标题",
-          "点赞数": note.likes || 0,
-          "笔记链接": {
-            "link": cleanUrl,
-            "text": "查看原文"
-          },
-          "封面链接": cleanImageUrl
-        }
-      };
-    });
-    
-    // 构建完整的数据对象
-    const dataObject = {
-      records: records
-    };
-    
-    // 转换为JSON字符串
-    const author_notes = JSON.stringify(dataObject);
-    
-    // 确保blogger_noteurl不包含反引号
-    const cleanBloggerNoteUrl = config.blogger_noteurl.replace(/`/g, '');
-    
-    // 显示加载状态并禁用按钮
-    const syncButton = document.getElementById('syncFeishuBtn');
-    const originalText = syncButton.textContent;
-    syncButton.disabled = true;
-    syncButton.textContent = '同步中...';
-    
-    // 检查 API_CONFIG 是否已加载
-    if (typeof API_CONFIG === 'undefined') {
-      showStatus('API配置未加载，请刷新页面重试');
-      return;
-    }
-    
-    // 向coze平台发起post请求
-    fetch(API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.SYNC_BLOGGER_NOTES, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        ordeid: config.ordeid.toString(),
-        basetoken: config.basetoken.toString(),
-        blogger_noteurl: cleanBloggerNoteUrl,
-        body: author_notes
-      })
-    })
-    .then(response => {
-      // 检查响应状态
-      if (!response.ok) {
-        throw new Error(`网络请求失败: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      // 恢复按钮状态
-      syncButton.disabled = false;
-      syncButton.textContent = originalText;
-      
-      console.log('API响应:', data);
-      
-      // 处理响应 - 兼容新旧两种格式
-      let result;
-      
-      // 新格式：直接对象 { ordeid_result: true, add_result: true, ... }
-      if (data.ordeid_result !== undefined) {
-        result = data;
-        console.log('使用新格式响应:', result);
-      } 
-      // 旧格式：{ code: 0, data: "{\"ordeid_result\":true,...}" }
-      else if (data.code === 0 && data.data) {
-        try {
-          result = JSON.parse(data.data);
-          console.log('使用旧格式响应，解析后的数据:', result);
-        } catch (parseError) {
-          console.error('解析响应数据时出错:', parseError);
-          showStatus(`同步出了点问题，解析错误: ${parseError.message}，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-          return;
-        }
-      } else {
-        // 未知格式
-        console.error('未知的响应格式:', data);
-        showStatus(`同步出了点问题，响应格式异常，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-        return;
-      }
-      
-      // 处理结果
-      if (result.add_result && result.ordeid_result) {
-        showStatus(`同步成功，去表格看看吧，<a href="${config.blogger_noteurl}" target="_blank" style="color: blue; text-decoration: underline;">点击查看表格</a>`);
-      } else if (!result.ordeid_result) {
-        showStatus(`用户编号不存在或已过期或存在多人使用情况，请点击购买，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击购买</a>`);
-      } else {
-        const errorMsg = result.error || `add_result: ${result.add_result}`;
-        showStatus(`同步出了点问题，${errorMsg}，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-      }
-    })
-    .catch(error => {
-      console.error('同步飞书时出错:', error);
-      // 恢复按钮状态
-      syncButton.disabled = false;
-      syncButton.textContent = originalText;
-      showStatus(`同步出了点问题，错误: ${error.message}，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-    });
-  } catch (dataError) {
-    console.error('数据处理错误:', dataError);
-    showStatus(`数据处理出错，错误: ${dataError.message}，请重试`);
-  }
+// 判断是否为 xhscdn 等需 Background 拉取的域名（防盗链/跨域）
+function isXhsCdnUrl(url) {
+  return url && (url.includes('xhscdn.com') || url.includes('xhsstatic.com'));
 }
 
-// 优化下载图片视频函数，添加用户编号验证功能
+// 通过 Background 拉取媒体并触发下载（规避 CORS/防盗链）
+async function downloadViaBackground(url, fileName) {
+  const result = await chrome.runtime.sendMessage({ action: 'fetchImage', imageUrl: url });
+  if (!result || !result.success || !result.base64) {
+    throw new Error(result?.error || '拉取失败');
+  }
+  const blob = base64ToBlob(result.base64);
+  const blobUrl = URL.createObjectURL(blob);
+  return new Promise((resolve, reject) => {
+    chrome.downloads.download({
+      url: blobUrl,
+      filename: fileName,
+      saveAs: false,
+      conflictAction: 'uniquify'
+    }, () => {
+      URL.revokeObjectURL(blobUrl);
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+// 优化下载图片视频函数
 async function downloadAllMedia() {
   if (capturedNote === null) {
     showStatus('没有可下载的媒体数据');
     return;
   }
-  
+
   // 收集所有图片和视频链接
   const mediaUrls = [];
-  
+
   // 添加所有图片链接
   if (capturedNote.imageUrls) {
     const imageArray = capturedNote.imageUrls.split(',');
     mediaUrls.push(...imageArray.filter(url => url.trim() !== ''));
   }
-  
+
   // 添加视频链接
   if (capturedNote.videoUrl && capturedNote.videoUrl.trim() !== '') {
     mediaUrls.push(capturedNote.videoUrl);
   }
-  
+
   if (mediaUrls.length === 0) {
     showStatus('没有找到可下载的图片或视频');
     return;
   }
-  
+
   // 禁用按钮防止重复点击
   const downloadBtn = document.getElementById('downloadMediaBtn');
   const originalText = downloadBtn.textContent;
   downloadBtn.disabled = true;
-  downloadBtn.textContent = '验证中...';
-  
+  downloadBtn.textContent = '下载中...';
+
   try {
-    // 获取飞书配置中的orderid
-    const config = loadConfiguration(true);
-    
-    if (!config.ordeid) {
-      showStatus('请先在配置页填写用户编号');
-      downloadBtn.disabled = false;
-      downloadBtn.textContent = originalText;
-      switchTab(document.getElementById('configTab'), document.getElementById('configContent'));
-      return;
-    }
-    
-    showStatus('正在验证用户编号，请稍候...');
-    
-    // 检查 API_CONFIG 是否已加载
-    if (typeof API_CONFIG === 'undefined') {
-      showStatus('API配置未加载，请刷新页面重试');
-      downloadBtn.disabled = false;
-      downloadBtn.textContent = originalText;
-      return;
-    }
-    
-    // 向coze平台发起post请求验证用户编号
-    const response = await fetch(API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.VERIFY_ORDER, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        ordeid: config.ordeid.toString()
-      })
-    });
-    
-    const data = await response.json();
-    console.log('API响应:', data);
-    
-    // 处理响应 - 兼容新旧两种格式
-    let result;
-    
-    // 新格式：直接对象 { ordeid_result: true, ... }
-    if (data.ordeid_result !== undefined) {
-      result = data;
-      console.log('使用新格式响应:', result);
-    } 
-    // 旧格式：{ code: 0, data: "{\"ordeid_result\":true,...}" }
-    else if (data.code === 0 && data.data) {
-      try {
-        result = JSON.parse(data.data);
-        console.log('使用旧格式响应，解析后的数据:', result);
-      } catch (parseError) {
-        console.error('解析响应数据时出错:', parseError);
-        showStatus(`验证用户编号出了点问题，解析错误: ${parseError.message}，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-        downloadBtn.disabled = false;
-        downloadBtn.textContent = originalText;
-        return;
-      }
-    } else {
-      // 未知格式
-      console.error('未知的响应格式:', data);
-      showStatus(`验证用户编号出了点问题，响应格式异常，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-      downloadBtn.disabled = false;
-      downloadBtn.textContent = originalText;
-      return;
-    }
-    
-    // 处理结果
-    if (!result.ordeid_result) {
-      showStatus(`用户编号不存在或已过期或存在多人使用情况，请点击购买，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击购买</a>`);
-      downloadBtn.disabled = false;
-      downloadBtn.textContent = originalText;
-      return;
-    }
-    
-    // 订单验证通过，继续下载逻辑
     showStatus('正在下载媒体文件，请稍候...');
-    downloadBtn.textContent = '下载中...';
-    
-    // 逐个下载文件
+
     let downloadedCount = 0;
     let failedCount = 0;
-    
-    // 为文件夹生成默认名称
     const noteTitle = capturedNote.title ? capturedNote.title.replace(/[^\w\u4e00-\u9fa5]/g, '_').substring(0, 15) : '平台笔记';
-    
-    mediaUrls.forEach((url, index) => {
-      // 为文件生成有意义的名称
+
+    for (let index = 0; index < mediaUrls.length; index++) {
+      const url = mediaUrls[index];
       const fileExtension = url.match(/\.\w+($|\?)/) ? url.match(/\.\w+($|\?)/)[0].split('?')[0] : '.jpg';
       const fileName = `${noteTitle}_media_${index + 1}${fileExtension}`;
-      
-      // 使用Chrome下载API进行下载
-      chrome.downloads.download({
-        url: url,
-        filename: fileName,
-        saveAs: false, // 不显示浏览器默认的保存对话框
-        conflictAction: 'uniquify' // 文件名冲突时自动重命名
-      }, (downloadId) => {
-        if (chrome.runtime.lastError) {
-          console.error('下载失败:', chrome.runtime.lastError);
-          failedCount++;
+
+      try {
+        if (isXhsCdnUrl(url)) {
+          // xhscdn：用 Background 拉取后下载（规避 CORS）
+          await downloadViaBackground(url, fileName);
         } else {
-          downloadedCount++;
+          // 其他：直接下载
+          await new Promise((resolve, reject) => {
+            chrome.downloads.download({
+              url: url,
+              filename: fileName,
+              saveAs: false,
+              conflictAction: 'uniquify'
+            }, () => {
+              if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+              } else {
+                resolve();
+              }
+            });
+          });
         }
-        
-        // 所有文件都处理完成后更新状态
-        if (downloadedCount + failedCount === mediaUrls.length) {
-          setTimeout(() => {
-            downloadBtn.disabled = false;
-            downloadBtn.textContent = originalText;
-            
-            if (failedCount > 0) {
-              showStatus(`下载完成：成功 ${downloadedCount} 个，失败 ${failedCount} 个`);
-            } else {
-              showStatus(`成功下载 ${downloadedCount} 个媒体文件到浏览器默认下载文件夹`);
-            }
-          }, 1000);
-        }
-      });
-    });
+        downloadedCount++;
+      } catch (err) {
+        console.error('下载失败:', url, err);
+        failedCount++;
+      }
+    }
+
+    downloadBtn.disabled = false;
+    downloadBtn.textContent = originalText;
+    if (failedCount > 0) {
+      showStatus(`下载完成：成功 ${downloadedCount} 个，失败 ${failedCount} 个`);
+    } else {
+      showStatus(`成功下载 ${downloadedCount} 个媒体文件到浏览器默认下载文件夹`);
+    }
   } catch (error) {
-    console.error('验证用户编号时出错:', error);
-    showStatus(`验证订单号出了点问题，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-    
-    // 恢复按钮状态
+    console.error('下载媒体时出错:', error);
+    showStatus('下载失败：' + (error.message || '请稍后重试'));
     downloadBtn.disabled = false;
     downloadBtn.textContent = originalText;
   }
-}
-
-// 验证用户编号函数
-async function verifyUserOrder() {
-  // 获取用户编号
-  const ordeidInput = document.getElementById('ordeid');
-  const ordeid = ordeidInput ? ordeidInput.value.trim() : '';
-  
-  if (!ordeid) {
-    showStatus('请先输入用户编号');
-    return;
-  }
-  
-  // 获取验证按钮
-  const checkUserBtn = document.getElementById('checkUserBtn');
-  const originalText = checkUserBtn ? checkUserBtn.textContent : '验证用户';
-  
-  // 禁用按钮防止重复点击
-  if (checkUserBtn) {
-    checkUserBtn.disabled = true;
-    checkUserBtn.textContent = '验证中...';
-  }
-  
-  showStatus('正在验证用户编号，请稍候...');
-  
-  try {
-    // 检查 API_CONFIG 是否已加载
-    if (typeof API_CONFIG === 'undefined') {
-      showStatus('API配置未加载，请刷新页面重试');
-      if (checkUserBtn) {
-        checkUserBtn.disabled = false;
-        checkUserBtn.textContent = originalText;
-      }
-      return;
-    }
-    
-    // 构建完整的API URL
-    const apiUrl = API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.VERIFY_ORDER;
-    console.log('验证用户编号 - API地址:', apiUrl);
-    console.log('验证用户编号 - 请求数据:', { ordeid: ordeid });
-    
-    // 向API发起POST请求验证用户编号
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        ordeid: ordeid
-      })
-    });
-    
-    // 检查响应状态
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API响应错误:', response.status, errorText);
-      throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    console.log('验证用户编号API响应:', data);
-    
-    // 处理响应 - 兼容新旧两种格式
-    let result;
-    
-    // 新格式：直接对象 { ordeid_result: true, ... }
-    if (data.ordeid_result !== undefined) {
-      result = data;
-      console.log('使用新格式响应:', result);
-    } 
-    // 旧格式：{ code: 0, data: "{\"ordeid_result\":true,...}" }
-    else if (data.code === 0 && data.data) {
-      try {
-        result = JSON.parse(data.data);
-        console.log('使用旧格式响应，解析后的数据:', result);
-      } catch (parseError) {
-        console.error('解析响应数据时出错:', parseError);
-        showStatus(`验证用户编号出了点问题，解析错误: ${parseError.message}，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-        if (checkUserBtn) {
-          checkUserBtn.disabled = false;
-          checkUserBtn.textContent = originalText;
-        }
-        return;
-      }
-    } else {
-      // 未知格式
-      console.error('未知的响应格式:', data);
-      showStatus(`验证用户编号出了点问题，响应格式异常，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-      if (checkUserBtn) {
-        checkUserBtn.disabled = false;
-        checkUserBtn.textContent = originalText;
-      }
-      return;
-    }
-    
-    // 处理结果
-    if (result.ordeid_result) {
-      showStatus('✅ 用户编号验证成功！可以继续配置飞书参数');
-      // 验证成功后，显示飞书配置区域
-      const feishuConfigSection = document.getElementById('feishuConfigSection');
-      if (feishuConfigSection) {
-        feishuConfigSection.style.display = 'block';
-      }
-    } else {
-      showStatus(`❌ 用户编号不存在或已过期或存在多人使用情况，请点击购买，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击购买</a>`);
-    }
-    
-    // 恢复按钮状态
-    if (checkUserBtn) {
-      checkUserBtn.disabled = false;
-      checkUserBtn.textContent = originalText;
-    }
-  } catch (error) {
-    console.error('验证用户编号时出错:', error);
-    console.error('错误详情:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      apiUrl: API_CONFIG ? API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.VERIFY_ORDER : '未定义'
-    });
-    
-    // 根据错误类型显示不同的提示
-    let errorMessage = '验证用户编号出了点问题';
-    if (error.message.includes('Failed to fetch')) {
-      errorMessage = '网络请求失败，请检查：<br>1. 网络连接是否正常<br>2. API服务器是否可访问<br>3. 浏览器控制台是否有CORS错误';
-    } else if (error.message.includes('API请求失败')) {
-      errorMessage = `API请求失败: ${error.message}`;
-    } else {
-      errorMessage = `错误: ${error.message}`;
-    }
-    
-    showStatus(`${errorMessage}，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-    
-    // 恢复按钮状态
-    if (checkUserBtn) {
-      checkUserBtn.disabled = false;
-      checkUserBtn.textContent = originalText;
-    }
-  }
-}
-
-// 保存配置到本地
-function saveConfiguration() {
-  const config = {
-    ordeid: document.getElementById('ordeid').value,
-    basetoken: document.getElementById('basetoken').value,
-    knowledgeurl: document.getElementById('knowledgeurl').value,
-    blogger_noteurl: document.getElementById('blogger_noteurl').value,
-    bloggerurl: document.getElementById('bloggerurl').value
-  };
-  
-  // 保存到localStorage
-  localStorage.setItem('feishuConfig', JSON.stringify(config));
-  
-  showStatus('配置已保存');
-  
-  // 检查并更新按钮状态
-  checkAndUpdateButtonStatus();
-}
-
-// 从本地加载配置
-function loadConfiguration(silent = false) {
-  const configStr = localStorage.getItem('feishuConfig');
-  if (configStr) {
-    try {
-      const config = JSON.parse(configStr);
-      
-      // 填充到输入框
-      document.getElementById('ordeid').value = config.ordeid || '';
-      document.getElementById('basetoken').value = config.basetoken || '';
-      document.getElementById('knowledgeurl').value = config.knowledgeurl || '';
-      document.getElementById('blogger_noteurl').value = config.blogger_noteurl || '';
-      document.getElementById('bloggerurl').value = config.bloggerurl || '';
-      
-      return config;
-    } catch (e) {
-      if (!silent) {
-        showStatus('配置解析错误');
-      }
-    }
-  }
-  return {};
 }
 
 // 优化单篇收藏函数
 function startSingleCapture() {
   // 清空之前的收藏结果，确保完全重置对象
   capturedNote = null;
+  capturedNoteTabId = null;
   updateSingleNoteDisplay();
   
   // 显示收藏状态提示
@@ -1159,6 +784,7 @@ function startSingleCapture() {
               response.data.noteType === '视频') {
             capturedNote.videoUrl = response.data.videoUrl;
           }
+          capturedNoteTabId = tabs[0].id; // 保存标签页 ID，同步时用于下载图片
           
           showStatus('成功收藏到单条内容');
           updateSingleNoteDisplay();
@@ -1254,135 +880,6 @@ function exportBloggerInfoToExcel() {
   } catch (error) {
     console.error('导出Excel时出错:', error);
     showStatus('导出Excel失败，请重试');
-  }
-}
-
-// 同步创作者信息到飞书
-function syncBloggerInfoToFeishu() {
-  if (capturedBloggerInfo === null) {
-    showStatus('没有可同步的创作者信息数据');
-    return;
-  }
-  
-  showStatus('正在同步到飞书，请稍候...');
-  
-  // 获取飞书配置
-  const config = loadConfiguration(true);
-  
-  // 检查配置是否完整
-  if (!config.ordeid || !config.basetoken || !config.bloggerurl) {
-    showStatus('请先配置完整的飞书信息');
-    switchTab(document.getElementById('configTab'), document.getElementById('configContent'));
-    return;
-  }
-  
-  // 准备同步数据
-  try {
-    // 获取创作者信息
-    const bloggerInfo = capturedBloggerInfo;
-    
-    // 构建records数组 - 完全按照用户要求的格式
-    const records = [{
-      "fields": {
-        "创作者名称": bloggerInfo.bloggerName || bloggerInfo.name || "",
-        "头像链接": bloggerInfo.avatarUrl || bloggerInfo.avatar || "",
-        "平台号": bloggerInfo.bloggerId || bloggerInfo.userId || bloggerInfo.xiaohongshuId || "",
-        "简介": bloggerInfo.description || bloggerInfo.bio || "",
-        "粉丝数": bloggerInfo.followersCount || bloggerInfo.fansCount || 0,
-        "主页链接": {
-          "link": bloggerInfo.bloggerUrl || bloggerInfo.profileUrl || bloggerInfo.url || "",
-          "text": "查看原文"
-        },
-        "收藏时间": new Date().getTime() // 中国日期的时间戳格式
-      }
-    }];
-    
-    // 构建完整的数据对象
-    const dataObject = {
-      records: records
-    };
-    
-    // 转换为JSON字符串 - 赋值给auther_detail变量
-    const auther_detail = JSON.stringify(dataObject);
-    
-    // 显示加载状态并禁用按钮
-    const syncButton = document.getElementById('syncBloggerFeishuBtn');
-    const originalText = syncButton.textContent;
-    syncButton.disabled = true;
-    syncButton.textContent = '同步中...';
-    
-    // 向coze平台发起post请求 - 使用正确的工作流ID和参数
-    fetch(API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.SYNC_BLOGGER_INFO, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        ordeid: config.ordeid.toString(),
-        basetoken: config.basetoken.toString(),
-        bloggerurl: config.bloggerurl.toString(),
-        body: auther_detail
-      })
-    })
-    .then(response => {
-      // 检查响应状态
-      if (!response.ok) {
-        throw new Error(`网络请求失败: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      // 恢复按钮状态
-      syncButton.disabled = false;
-      syncButton.textContent = originalText;
-      
-      console.log('API响应:', data);
-      
-      // 处理响应 - 兼容新旧两种格式
-      let result;
-      
-      // 新格式：直接对象 { ordeid_result: true, add_result: true, ... }
-      if (data.ordeid_result !== undefined) {
-        result = data;
-        console.log('使用新格式响应:', result);
-      } 
-      // 旧格式：{ code: 0, data: "{\"ordeid_result\":true,...}" }
-      else if (data.code === 0 && data.data) {
-        try {
-          result = JSON.parse(data.data);
-          console.log('使用旧格式响应，解析后的数据:', result);
-        } catch (parseError) {
-          console.error('解析响应数据时出错:', parseError);
-          showStatus(`同步出了点问题，解析错误: ${parseError.message}，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-          return;
-        }
-      } else {
-        // 未知格式
-        console.error('未知的响应格式:', data);
-        showStatus(`同步出了点问题，响应格式异常，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-        return;
-      }
-      
-      // 处理结果
-      if (result.add_result && result.ordeid_result) {
-        showStatus(`同步成功，去表格看看吧，<a href="${config.bloggerurl}" target="_blank" style="color: blue; text-decoration: underline;">点击查看表格</a>`);
-      } else if (!result.ordeid_result) {
-        showStatus(`用户编号不存在或已过期或存在多人使用情况，请点击购买，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击购买</a>`);
-      } else {
-        const errorMsg = result.error || `add_result: ${result.add_result}`;
-        showStatus(`同步出了点问题，${errorMsg}，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-      }
-    })
-    .catch(error => {
-      console.error('同步飞书时出错:', error);
-      // 恢复按钮状态
-      syncButton.disabled = false;
-      syncButton.textContent = originalText;
-      showStatus(`同步出了点问题，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-    });
-  } catch (dataError) {
-    console.error('数据处理错误:', dataError);
-    showStatus(`数据处理出错，请重试`);
   }
 }
 
@@ -1543,201 +1040,6 @@ function exportSingleNoteToExcel() {
   }
 }
 
-// 同步单条内容到飞书
-function syncSingleNoteToFeishu() {
-  if (capturedNote === null) {
-    showStatus('没有可同步的笔记数据');
-    return;
-  }
-  
-  showStatus('正在同步到飞书，请稍候...');
-  
-  // 获取飞书配置
-  const config = loadConfiguration(true);
-  
-  // 检查配置是否完整
-  if (!config.ordeid || !config.basetoken || !config.knowledgeurl) {
-    showStatus('请先配置完整的飞书信息');
-    switchTab(document.getElementById('configTab'), document.getElementById('configContent'));
-    return;
-  }
-  
-  // 准备同步数据
-  try {
-    // 处理话题标签，去除#符号
-    let tagsArray = [];
-    if (capturedNote.tags) {
-      tagsArray = capturedNote.tags.split(',').map(tag => tag.replace(/#/g, '').trim());
-    }
-    
-    // 处理全部图片链接，按"图X=(链接)"格式组合带换行
-    let formattedImageUrls = '';
-    if (capturedNote.imageUrls) {
-      const imageArray = capturedNote.imageUrls.split(',');
-      formattedImageUrls = imageArray.map((img, index) => `图${index + 1}=(${img})`).join('\n');
-    }
-    
-    // 首先创建基本的fields对象
-    const fields = {
-      "创作者": capturedNote.author || "未知作者",
-      "封面链接": capturedNote.imageUrls ? capturedNote.imageUrls.split(',')[0] : "",
-      "标题": capturedNote.title || "无标题",
-      "原文链接": {
-        "link": capturedNote.url || "",
-        "text": "查看原文"
-      },
-      "正文": capturedNote.content || "",
-      "话题标签": tagsArray,
-      "图片链接": formattedImageUrls,
-      "点赞数": capturedNote.likes || 0,
-      "收藏数": capturedNote.collects || 0,
-      "评论数": capturedNote.comments || 0,
-      "类型": capturedNote.noteType || (capturedNote.videoUrl ? "视频" : "图文"),
-      "域名": "平台",
-      "收藏时间": new Date().getTime(), // 中国日期的时间戳格式
-      "发布时间": capturedNote.publishDate ? (() => {
-        try {
-          console.log('=== sidebar.js日期转换调试 ===');
-          console.log('原始publishDate:', capturedNote.publishDate);
-          
-          // 处理格式：2024/12/13 20:00
-          const dateStr = capturedNote.publishDate;
-          const parts = dateStr.match(/(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2})/);
-          console.log('正则匹配结果:', parts);
-          
-          if (parts) {
-            const [, year, month, day, hour, minute] = parts;
-            console.log('提取的组件:', {year, month, day, hour, minute});
-            
-            const targetDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
-            console.log('构造的Date对象:', targetDate);
-            console.log('最终时间戳:', targetDate.getTime());
-            console.log('=== sidebar.js日期转换结束 ===');
-            
-            return targetDate.getTime();
-          }
-          // 如果格式不匹配，尝试直接解析
-          console.log('格式不匹配，尝试备用解析');
-          const fallbackResult = new Date(dateStr.replace(/\//g, '-')).getTime();
-          console.log('备用解析结果:', fallbackResult);
-          console.log('=== sidebar.js日期转换结束 ===');
-          return fallbackResult;
-        } catch (e) {
-          console.error('日期转换失败:', e);
-          return 0;
-        }
-      })() : 0
-    };
-    
-    // 只有当视频链接不为空时，才添加视频链接字段 - 保留这个优化
-    if (capturedNote.videoUrl && capturedNote.videoUrl.trim() !== '') {
-      fields["视频链接"] = {
-        "link": capturedNote.videoUrl,
-        "text": "查看视频"
-      };
-    }
-    
-    // 构建records数组
-    const records = [{
-      "fields": fields
-    }];
-    
-    // 构建完整的数据对象
-    const dataObject = {
-      records: records
-    };
-    
-    // 转换为JSON字符串 - 赋值给detail_notes变量
-    const detail_notes = JSON.stringify(dataObject);
-    
-    // 显示加载状态并禁用按钮
-    const syncButton = document.getElementById('syncSingleFeishuBtn');
-    const originalText = syncButton.textContent;
-    syncButton.disabled = true;
-    syncButton.textContent = '同步中...';
-    
-    // 检查 API_CONFIG 是否已加载
-    if (typeof API_CONFIG === 'undefined') {
-      showStatus('API配置未加载，请刷新页面重试');
-      syncButton.disabled = false;
-      syncButton.textContent = originalText;
-      return;
-    }
-    
-    // 向coze平台发起post请求 - 使用正确的工作流ID和参数
-    fetch(API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.SYNC_SINGLE_NOTE, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        ordeid: config.ordeid.toString(),
-        basetoken: config.basetoken.toString(),
-        knowledgeurl: config.knowledgeurl.toString(),
-        body: detail_notes
-      })
-    })
-    .then(response => {
-      // 检查响应状态
-      if (!response.ok) {
-        throw new Error(`网络请求失败: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      // 恢复按钮状态
-      syncButton.disabled = false;
-      syncButton.textContent = originalText;
-      
-      console.log('API响应:', data);
-      
-      // 处理响应 - 兼容新旧两种格式
-      let result;
-      
-      // 新格式：直接对象 { ordeid_result: true, add_result: true, ... }
-      if (data.ordeid_result !== undefined) {
-        result = data;
-        console.log('使用新格式响应:', result);
-      } 
-      // 旧格式：{ code: 0, data: "{\"ordeid_result\":true,...}" }
-      else if (data.code === 0 && data.data) {
-        try {
-          result = JSON.parse(data.data);
-          console.log('使用旧格式响应，解析后的数据:', result);
-        } catch (parseError) {
-          console.error('解析响应数据时出错:', parseError);
-          showStatus(`同步出了点问题，解析错误: ${parseError.message}，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-          return;
-        }
-      } else {
-        // 未知格式
-        console.error('未知的响应格式:', data);
-        showStatus(`同步出了点问题，响应格式异常，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-        return;
-      }
-      
-      // 处理结果
-      if (result.add_result && result.ordeid_result) {
-        showStatus(`同步成功，去表格看看吧，<a href="${config.knowledgeurl}" target="_blank" style="color: blue; text-decoration: underline;">点击查看表格</a>`);
-      } else if (!result.ordeid_result) {
-        showStatus(`用户编号不存在或已过期或存在多人使用情况，请点击购买，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击购买</a>`);
-      } else {
-        const errorMsg = result.error || `add_result: ${result.add_result}`;
-        showStatus(`同步出了点问题，${errorMsg}，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-      }
-    })
-    .catch(error => {
-      console.error('同步飞书时出错:', error);
-      // 恢复按钮状态
-      syncButton.disabled = false;
-      syncButton.textContent = originalText;
-      showStatus(`同步出了点问题，请稍后再试，或者联系客服解决，<a href="https://gobiggroup.feishu.cn/wiki/QWDOwWvPYiZfb2kXuwqc8fQanmb?from=from_copylink" target="_blank" style="color: blue; text-decoration: underline;">点击联系客服</a>`);
-    });
-  } catch (dataError) {
-    console.error('数据处理错误:', dataError);
-    showStatus(`数据处理出错，请重试`);
-  }
-}
 // ============================================
 // API Key 管理功能（添加到文件末尾，不破坏现有逻辑）
 // ============================================
@@ -1837,111 +1139,8 @@ setTimeout(function() {
 }, 1000);
 
 // ============================================
-// Edit Business API 同步功能（覆盖原飞书同步）
+// Edit Business API 同步功能
 // ============================================
-
-// 同步单条内容到 Edit Business
-function syncSingleNoteToFeishu() {
-  if (capturedNote === null) {
-    showStatus('没有可同步的笔记数据');
-    return;
-  }
-  
-  showStatus('正在同步数据，请稍候...');
-  
-  const apiKey = localStorage.getItem('edit-business-api-key');
-  if (!apiKey) {
-    showStatus('请先在设置中配置 API Key');
-    return;
-  }
-  
-  const data = {
-    url: capturedNote.url,
-    title: capturedNote.title,
-    author: capturedNote.author,
-    content: capturedNote.content || '',
-    tags: capturedNote.tags ? capturedNote.tags.split(',') : [],
-    imageUrls: capturedNote.imageUrls ? capturedNote.imageUrls.split(',') : [],
-    videoUrl: capturedNote.videoUrl || '',
-    noteType: capturedNote.noteType || (capturedNote.videoUrl ? '视频' : '图文'),
-    coverImageUrl: capturedNote.imageUrls ? capturedNote.imageUrls.split(',')[0] : '',
-    likes: Number(capturedNote.likes || 0),
-    collects: Number(capturedNote.collects || 0),
-    comments: Number(capturedNote.comments || 0),
-    publishDate: Number(capturedNote.publishDate || Date.now()),
-    source: 'single',
-    captureTimestamp: Date.now()
-  };
-  
-  fetch(API_CONFIG.BASE_URL + '/api/v1/notes', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-Key': apiKey
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.code === 0 || result.success) {
-      showStatus('✅ 同步成功！');
-    } else {
-      showStatus('同步失败：' + (result.message || '未知错误'));
-    }
-  })
-  .catch(error => {
-    console.error('同步失败:', error);
-    showStatus('同步失败：' + error.message);
-  });
-}
-
-// 批量同步笔记到 Edit Business
-function syncToFeishu() {
-  if (capturedLinks.length === 0) {
-    showStatus('没有可同步的笔记数据');
-    return;
-  }
-  
-  showStatus('正在批量同步 ' + capturedLinks.length + ' 条笔记，请稍候...');
-  
-  const apiKey = localStorage.getItem('edit-business-api-key');
-  if (!apiKey) {
-    showStatus('请先在设置中配置 API Key');
-    return;
-  }
-  
-  const notesData = capturedLinks.map(link => ({
-    url: link.url,
-    title: link.title,
-    author: link.author,
-    likes: Number(link.likes || 0),
-    image: link.image || '',
-    publishDate: Number(link.publishDate || Date.now()),
-    source: 'batch',
-    captureTimestamp: Date.now()
-  }));
-  
-  fetch(API_CONFIG.BASE_URL + '/api/v1/notes/batch', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-Key': apiKey
-    },
-    body: JSON.stringify(notesData)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.code === 0 || result.success) {
-      showStatus('✅ 同步成功！已同步 ' + capturedLinks.length + ' 条笔记');
-    } else {
-      showStatus('同步失败：' + (result.message || '未知错误'));
-    }
-  })
-  .catch(error => {
-    console.error('批量同步失败:', error);
-    showStatus('同步失败：' + error.message);
-  });
-}
 
 // 同步创作者信息到 Edit Business
 function syncBloggerInfoToFeishu() {
@@ -2044,24 +1243,57 @@ async function getQiniuToken() {
 }
 
 /**
- * 从平台下载图片（使用浏览器上下文，有cookies）
+ * 将 base64 字符串转为 Blob
+ */
+function base64ToBlob(base64, mimeType = 'image/jpeg') {
+  const base64Data = base64.includes(',') ? base64.split(',')[1] : base64;
+  const byteCharacters = atob(base64Data);
+  const byteArray = new Uint8Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteArray[i] = byteCharacters.charCodeAt(i);
+  }
+  return new Blob([byteArray], { type: mimeType });
+}
+
+/**
+ * 从平台下载图片（优先 Background 拉图，规避 CORS；失败时回退到 content script）
  * @param {string} imageUrl - 平台图片URL
  * @returns {Promise<Blob>}
  */
-async function downloadImageFromXhs(imageUrl) {
+async function downloadImageFromXhs(imageUrl, tabId = null) {
   try {
-    const response = await fetch(imageUrl, {
-      credentials: 'include', // 包含cookies，绕过防盗链
-      headers: {
-        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`下载图片失败: ${response.status}`);
+    // 1. 优先用 Background 拉图（有 host_permissions，不受 CORS 限制）
+    const bgResult = await chrome.runtime.sendMessage({ action: 'fetchImage', imageUrl });
+    if (bgResult && bgResult.success && bgResult.base64) {
+      return base64ToBlob(bgResult.base64);
     }
 
-    return await response.blob();
+    // 2. 回退：用 content script（页面上下文，带 cookie，部分场景可用）
+    let targetTabId = tabId || capturedNoteTabId || capturedLinksTabId;
+    if (!targetTabId) {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tabs[0] || !tabs[0].id) {
+        throw new Error(bgResult?.error || '无法获取当前标签页，请确保小红书页面为当前激活的标签页');
+      }
+      if (!tabs[0].url || !tabs[0].url.includes('xiaohongshu.com')) {
+        throw new Error('当前标签页不是小红书页面，请切换到小红书笔记页再同步');
+      }
+      targetTabId = tabs[0].id;
+    }
+
+    const result = await chrome.tabs.sendMessage(targetTabId, {
+      action: 'downloadImage',
+      imageUrl: imageUrl
+    });
+
+    if (!result) {
+      throw new Error('未收到响应，请刷新小红书页面后重试');
+    }
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return base64ToBlob(result.base64);
   } catch (error) {
     console.error('下载图片失败:', imageUrl, error);
     throw error;
@@ -2121,11 +1353,37 @@ function uploadToQiniu(file, key, token) {
  */
 async function processSingleImage(imageUrl, index = 0) {
   try {
-    // 1. 下载图片
-    const blob = await downloadImageFromXhs(imageUrl);
+    // 1. 下载图片（需保持小红书页面为当前标签页）
+    let blob;
+    try {
+      blob = await downloadImageFromXhs(imageUrl);
+    } catch (e) {
+      const msg = e.message || String(e);
+      console.error('下载图片失败:', imageUrl, e);
+      let hint = '请确保小红书页面为当前标签页';
+      if (msg.includes('Receiving end') || msg.includes('receiving end')) {
+        hint = '请刷新小红书页面后重试（插件需重新注入）';
+      } else if (msg.includes('跨域') || msg.includes('防盗链')) {
+        hint = '平台图片有跨域/防盗链限制，无法直接读取';
+      }
+      if (typeof showStatus === 'function') {
+        showStatus(`⚠️ 图片${index + 1}下载失败: ${msg}。${hint}`);
+      }
+      return imageUrl;
+    }
 
     // 2. 获取上传token
-    const tokenData = await getQiniuToken();
+    let tokenData;
+    try {
+      tokenData = await getQiniuToken();
+    } catch (e) {
+      const msg = e.message || String(e);
+      console.error('获取七牛云token失败:', e);
+      if (typeof showStatus === 'function') {
+        showStatus(`⚠️ 获取七牛云token失败(${msg})，已使用原链接。请检查API Key和后端配置`);
+      }
+      return imageUrl;
+    }
 
     // 3. 生成文件key
     const timestamp = Date.now();
@@ -2138,12 +1396,22 @@ async function processSingleImage(imageUrl, index = 0) {
     localStorage.setItem('qiniu-cdn-domain', tokenData.cdnDomain);
 
     // 4. 上传到七牛云
-    const cdnUrl = await uploadToQiniu(blob, key, tokenData.uploadToken);
-
-    return cdnUrl;
+    try {
+      const cdnUrl = await uploadToQiniu(blob, key, tokenData.uploadToken);
+      return cdnUrl;
+    } catch (e) {
+      const msg = e.message || String(e);
+      console.error('七牛云上传失败:', e);
+      if (typeof showStatus === 'function') {
+        showStatus(`⚠️ 图片${index + 1}上传七牛云失败(${msg})，已使用原链接`);
+      }
+      return imageUrl;
+    }
   } catch (error) {
     console.error('处理图片失败:', imageUrl, error);
-    // 如果上传失败，返回原始URL作为fallback
+    if (typeof showStatus === 'function') {
+      showStatus(`⚠️ 图片${index + 1}处理异常(${error.message})，已使用原链接`);
+    }
     return imageUrl;
   }
 }
@@ -2184,6 +1452,55 @@ async function processImageUrls(imageUrls, progressCallback = null) {
 // 修改后的同步函数（使用七牛云CDN URL）
 // ============================================
 
+/**
+ * 校验采集页面 tab 是否就绪（需下载图片时必须切回采集页）
+ * @param {string} mode - 'single' 单条采集 | 'batch' 批量采集
+ * @returns {Promise<{ok: boolean, message?: string}>}
+ */
+async function ensureNoteTabForImageDownload(mode = 'single') {
+  let hasImages = false;
+  let targetTabId = null;
+
+  if (mode === 'single') {
+    hasImages = capturedNote && capturedNote.imageUrls && capturedNote.imageUrls.trim() !== '';
+    targetTabId = capturedNoteTabId;
+  } else {
+    hasImages = capturedLinks.some(link => link.image && link.image.startsWith('http'));
+    targetTabId = capturedLinksTabId;
+  }
+
+  if (!hasImages) {
+    return { ok: true }; // 无图片则无需校验
+  }
+  if (!targetTabId) {
+    const hint = mode === 'single' ? '请重新在笔记页面采集后再同步' : '请重新在创作者主页采集后再同步';
+    return { ok: false, message: '无法获取采集时的页面，' + hint };
+  }
+
+  try {
+    const tab = await chrome.tabs.get(targetTabId);
+    if (!tab || !tab.url || !tab.url.includes('xiaohongshu.com')) {
+      const hint = mode === 'single' ? '请重新打开笔记页面并采集后再同步' : '请重新打开创作者主页并采集后再同步';
+      return { ok: false, message: '采集页面已失效，' + hint };
+    }
+
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!activeTab || activeTab.id !== targetTabId) {
+      // 自动切换到采集页 tab，提示用户再次点击同步
+      await chrome.tabs.update(targetTabId, { active: true });
+      return { ok: false, message: '已切换到采集页面，请再次点击「同步数据」' };
+    }
+
+    return { ok: true };
+  } catch (e) {
+    if (e.message && e.message.includes('No tab with id')) {
+      const hint = mode === 'single' ? '请重新打开笔记页面并采集后再同步' : '请重新打开创作者主页并采集后再同步';
+      return { ok: false, message: '采集页面已关闭，' + hint };
+    }
+    return { ok: false, message: '无法校验采集页面：' + (e.message || '未知错误') };
+  }
+}
+
 // 同步单条内容到 Edit Business（使用七牛云）
 async function syncSingleNoteToFeishu() {
   if (capturedNote === null) {
@@ -2199,7 +1516,21 @@ async function syncSingleNoteToFeishu() {
     return;
   }
 
+  // 有图片时需要用户保持在采集页，否则图片下载会失败
+  const tabCheck = await ensureNoteTabForImageDownload();
+  if (!tabCheck.ok) {
+    showStatus('⚠️ ' + tabCheck.message);
+    return;
+  }
+
   try {
+    // 检查七牛云 SDK 是否已加载（依赖 qiniu.min.js）
+    if (typeof qiniu === 'undefined') {
+      showStatus('❌ 七牛云上传组件未加载，请重新安装插件或联系技术支持');
+      console.error('qiniu SDK 未加载，请确保 sidebar.html 已正确引入 qiniu.min.js');
+      return;
+    }
+
     // 处理图片URLs：下载并上传到七牛云
     let cdnImageUrls = [];
     let cdnCoverImageUrl = '';
@@ -2207,10 +1538,10 @@ async function syncSingleNoteToFeishu() {
 
     if (capturedNote.imageUrls) {
       const originalUrls = capturedNote.imageUrls.split(',');
-      showStatus(`正在上传 ${originalUrls.length} 张图片到七牛云...`);
+      showStatus(`正在处理 ${originalUrls.length} 张图片...`);
 
       cdnImageUrls = await processImageUrls(originalUrls, (current, total, cdnUrl) => {
-        showStatus(`正在上传图片 ${current}/${total}...`);
+        showStatus(`正在处理图片 ${current}/${total}...`);
       });
 
       // 第一张作为封面
@@ -2259,7 +1590,7 @@ async function syncSingleNoteToFeishu() {
     const result = await response.json();
 
     if (result.code === 0 || result.success) {
-      showStatus('✅ 同步成功！图片已上传到七牛云');
+      showStatus('✅ 同步成功！');
       // 清除token缓存，下次重新获取
       cachedQiniuToken = null;
     } else {
@@ -2286,7 +1617,20 @@ async function syncToFeishu() {
     return;
   }
 
+  // 有图片时需要用户保持在采集页（创作者主页）
+  const tabCheck = await ensureNoteTabForImageDownload('batch');
+  if (!tabCheck.ok) {
+    showStatus('⚠️ ' + tabCheck.message);
+    return;
+  }
+
   try {
+    // 检查七牛云 SDK 是否已加载
+    if (typeof qiniu === 'undefined') {
+      showStatus('❌ 七牛云上传组件未加载，请重新安装插件或联系技术支持');
+      return;
+    }
+
     const notesData = [];
 
     for (let i = 0; i < capturedLinks.length; i++) {
@@ -2330,7 +1674,7 @@ async function syncToFeishu() {
     const result = await response.json();
 
     if (result.code === 0 || result.success) {
-      showStatus(`✅ 同步成功！已同步 ${capturedLinks.length} 条笔记到七牛云`);
+      showStatus(`✅ 同步成功！已同步 ${capturedLinks.length} 条笔记`);
       // 清除token缓存
       cachedQiniuToken = null;
     } else {

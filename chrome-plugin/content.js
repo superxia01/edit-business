@@ -57,6 +57,55 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       sendResponse({ success: false, error: error.message });
     });
     return true;
+  } else if (request.action === 'downloadImage') {
+    // 在页面上下文中下载图片（必须带 cookie，小红书 CDN 需登录态）
+    const imageUrl = request.imageUrl;
+
+    new Promise((resolve, reject) => {
+      // 优先用 fetch + credentials 拉取（带 cookie），直接得到 blob，无需 canvas
+      fetch(imageUrl, { credentials: 'include', mode: 'cors' })
+        .then(res => {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.blob();
+        })
+        .then(blob => {
+          // Chrome 消息只能传 JSON，Blob 无法序列化，必须转 base64 后发送
+          const reader = new FileReader();
+          reader.onloadend = () => resolve({ success: true, base64: reader.result });
+          reader.onerror = () => reject({ success: false, error: 'Blob 转 base64 失败' });
+          reader.readAsDataURL(blob);
+        })
+        .catch(fetchErr => {
+          // fetch 失败时回退到 img+canvas（尝试 use-credentials 带 cookie）
+          console.warn('fetch 下载失败，尝试 img 方式:', fetchErr);
+          const img = new Image();
+          img.crossOrigin = 'use-credentials'; // 带 cookie 的跨域请求
+
+          img.onload = function() {
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              const base64 = canvas.toDataURL('image/jpeg', 0.9);
+              resolve({ success: true, base64: base64 });
+            } catch (e) {
+              const msg = (e.message || '').includes('Tainted') ? '跨域限制，平台图片无法读取' : (e.message || '图片转换失败');
+              reject({ success: false, error: msg });
+            }
+          };
+          img.onerror = () => reject({ success: false, error: '图片加载失败，可能被防盗链拦截' });
+          img.src = imageUrl;
+        });
+    }).then(response => {
+      sendResponse(response);
+    }).catch(error => {
+      const err = (error && error.error) ? error.error : (error && error.message) ? error.message : '未知错误';
+      sendResponse({ success: false, error: String(err) });
+    });
+
+    return true;
   }
 });
 
@@ -1374,4 +1423,33 @@ function isValidVideoUrl(url) {
   }
   
   return isValid;
+}
+// 下载图片为 Base64（在页面上下文中执行，避免 CORS 问题）
+function downloadImageAsBase64(imageUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    
+    img.onload = function() {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        
+        const base64 = canvas.toDataURL('image/jpeg', 0.9);
+        resolve(base64);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    img.onerror = function() {
+      reject(new Error('图片加载失败'));
+    };
+    
+    img.src = imageUrl;
+  });
 }

@@ -14,6 +14,8 @@ scripts/ops/*.local.*
 
 # 后端编译产物
 backend/edit-business
+backend/edit-api
+backend/main
 backend/*-backup.*
 backend/bin/
 *.bak

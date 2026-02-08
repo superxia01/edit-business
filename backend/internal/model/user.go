@@ -33,11 +33,32 @@ func (User) TableName() string {
 	return "users"
 }
 
+// emptyStringToNil 将空字符串指针转为 nil，避免 UNIQUE 列插入 '' 导致多个用户冲突
+func emptyStringToNil(s *string) *string {
+	if s == nil || *s == "" {
+		return nil
+	}
+	return s
+}
+
 // BeforeCreate GORM hook
 func (u *User) BeforeCreate(tx *gorm.DB) error {
 	if u.ID == "" {
 		u.ID = generateUserID()
 	}
+	// 插入时对 UNIQUE 列做空字符串归一化，避免 '' 与 '' 冲突
+	u.UnionID = emptyStringToNil(u.UnionID)
+	u.PhoneNumber = emptyStringToNil(u.PhoneNumber)
+	u.Email = emptyStringToNil(u.Email)
+	return nil
+}
+
+// BeforeSave GORM hook（Create/Update 都会调用）
+func (u *User) BeforeSave(tx *gorm.DB) error {
+	// 保存时对 UNIQUE 列做空字符串归一化
+	u.UnionID = emptyStringToNil(u.UnionID)
+	u.PhoneNumber = emptyStringToNil(u.PhoneNumber)
+	u.Email = emptyStringToNil(u.Email)
 	return nil
 }
 

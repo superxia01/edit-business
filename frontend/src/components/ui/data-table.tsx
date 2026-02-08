@@ -24,12 +24,15 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   pageSize?: number
+  /** 固定行高（px），用于单行不换行布局 */
+  rowHeight?: number
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   pageSize = 20,
+  rowHeight = 72,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
 
@@ -98,9 +101,10 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
+                  style={{ height: rowHeight }}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="overflow-hidden">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()

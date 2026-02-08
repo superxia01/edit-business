@@ -53,37 +53,18 @@ func (r *NoteRepository) GetByUserIDAndURL(userID string, url string) (*model.No
 	return &note, nil
 }
 
-// List 获取笔记列表
-func (r *NoteRepository) List(offset, limit int) ([]*model.Note, int64, error) {
+// List 获取笔记列表（按用户隔离）
+func (r *NoteRepository) List(userID string, offset, limit int) ([]*model.Note, int64, error) {
 	var notes []*model.Note
 	var total int64
 
 	// 计算总数
-	if err := r.db.Model(&model.Note{}).Count(&total).Error; err != nil {
+	if err := r.db.Model(&model.Note{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	// 分页查询
-	err := r.db.Order("capture_timestamp DESC").
-		Offset(offset).
-		Limit(limit).
-		Find(&notes).Error
-
-	return notes, total, err
-}
-
-// ListBySource 根据 source 获取笔记列表
-func (r *NoteRepository) ListBySource(source string, offset, limit int) ([]*model.Note, int64, error) {
-	var notes []*model.Note
-	var total int64
-
-	// 计算总数
-	if err := r.db.Model(&model.Note{}).Where("source = ?", source).Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	// 分页查询
-	err := r.db.Where("source = ?", source).
+	err := r.db.Where("user_id = ?", userID).
 		Order("capture_timestamp DESC").
 		Offset(offset).
 		Limit(limit).
@@ -92,18 +73,18 @@ func (r *NoteRepository) ListBySource(source string, offset, limit int) ([]*mode
 	return notes, total, err
 }
 
-// ListByAuthor 根据作者获取笔记列表
-func (r *NoteRepository) ListByAuthor(author string, offset, limit int) ([]*model.Note, int64, error) {
+// ListBySource 根据 source 获取笔记列表（按用户隔离）
+func (r *NoteRepository) ListBySource(userID, source string, offset, limit int) ([]*model.Note, int64, error) {
 	var notes []*model.Note
 	var total int64
 
 	// 计算总数
-	if err := r.db.Model(&model.Note{}).Where("author = ?", author).Count(&total).Error; err != nil {
+	if err := r.db.Model(&model.Note{}).Where("user_id = ? AND source = ?", userID, source).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	// 分页查询
-	err := r.db.Where("author = ?", author).
+	err := r.db.Where("user_id = ? AND source = ?", userID, source).
 		Order("capture_timestamp DESC").
 		Offset(offset).
 		Limit(limit).
@@ -112,18 +93,38 @@ func (r *NoteRepository) ListByAuthor(author string, offset, limit int) ([]*mode
 	return notes, total, err
 }
 
-// ListByTags 根据标签获取笔记列表
-func (r *NoteRepository) ListByTags(tags []string, offset, limit int) ([]*model.Note, int64, error) {
+// ListByAuthor 根据作者获取笔记列表（按用户隔离）
+func (r *NoteRepository) ListByAuthor(userID, author string, offset, limit int) ([]*model.Note, int64, error) {
 	var notes []*model.Note
 	var total int64
 
 	// 计算总数
-	if err := r.db.Model(&model.Note{}).Where("tags && ?", tags).Count(&total).Error; err != nil {
+	if err := r.db.Model(&model.Note{}).Where("user_id = ? AND author = ?", userID, author).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	// 分页查询
-	err := r.db.Where("tags && ?", tags).
+	err := r.db.Where("user_id = ? AND author = ?", userID, author).
+		Order("capture_timestamp DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&notes).Error
+
+	return notes, total, err
+}
+
+// ListByTags 根据标签获取笔记列表（按用户隔离）
+func (r *NoteRepository) ListByTags(userID string, tags []string, offset, limit int) ([]*model.Note, int64, error) {
+	var notes []*model.Note
+	var total int64
+
+	// 计算总数
+	if err := r.db.Model(&model.Note{}).Where("user_id = ? AND tags && ?", userID, tags).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 分页查询
+	err := r.db.Where("user_id = ? AND tags && ?", userID, tags).
 		Order("capture_timestamp DESC").
 		Offset(offset).
 		Limit(limit).
@@ -196,9 +197,9 @@ func (r *NoteRepository) Upsert(note *model.Note) (*model.Note, error) {
 	return existing, nil
 }
 
-// Delete 删除笔记
-func (r *NoteRepository) Delete(id string) error {
-	return r.db.Where("id = ?", id).Delete(&model.Note{}).Error
+// Delete 删除笔记（按用户隔离，防止越权删除）
+func (r *NoteRepository) Delete(userID, id string) error {
+	return r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&model.Note{}).Error
 }
 
 // BatchCreate 批量创建笔记
@@ -219,37 +220,38 @@ type NoteStats struct {
 	VideoNotes    int64
 }
 
-// GetStats 获取笔记统计数据
-func (r *NoteRepository) GetStats() (*NoteStats, error) {
+// GetStats 获取笔记统计数据（按用户隔离）
+func (r *NoteRepository) GetStats(userID string) (*NoteStats, error) {
 	var stats NoteStats
+	q := r.db.Model(&model.Note{}).Where("user_id = ?", userID)
 
 	// 总笔记数
-	if err := r.db.Model(&model.Note{}).Count(&stats.TotalNotes).Error; err != nil {
+	if err := q.Count(&stats.TotalNotes).Error; err != nil {
 		return nil, err
 	}
 
 	// 总点赞数
-	if err := r.db.Model(&model.Note{}).Select("COALESCE(SUM(likes), 0)").Scan(&stats.TotalLikes).Error; err != nil {
+	if err := r.db.Model(&model.Note{}).Where("user_id = ?", userID).Select("COALESCE(SUM(likes), 0)").Scan(&stats.TotalLikes).Error; err != nil {
 		return nil, err
 	}
 
 	// 总收藏数
-	if err := r.db.Model(&model.Note{}).Select("COALESCE(SUM(collects), 0)").Scan(&stats.TotalCollects).Error; err != nil {
+	if err := r.db.Model(&model.Note{}).Where("user_id = ?", userID).Select("COALESCE(SUM(collects), 0)").Scan(&stats.TotalCollects).Error; err != nil {
 		return nil, err
 	}
 
 	// 总评论数
-	if err := r.db.Model(&model.Note{}).Select("COALESCE(SUM(comments), 0)").Scan(&stats.TotalComments).Error; err != nil {
+	if err := r.db.Model(&model.Note{}).Where("user_id = ?", userID).Select("COALESCE(SUM(comments), 0)").Scan(&stats.TotalComments).Error; err != nil {
 		return nil, err
 	}
 
 	// 图文笔记数
-	if err := r.db.Model(&model.Note{}).Where("note_type = ?", "图文").Count(&stats.ImageNotes).Error; err != nil {
+	if err := r.db.Model(&model.Note{}).Where("user_id = ? AND note_type = ?", userID, "图文").Count(&stats.ImageNotes).Error; err != nil {
 		return nil, err
 	}
 
 	// 视频笔记数
-	if err := r.db.Model(&model.Note{}).Where("note_type = ?", "视频").Count(&stats.VideoNotes).Error; err != nil {
+	if err := r.db.Model(&model.Note{}).Where("user_id = ? AND note_type = ?", userID, "视频").Count(&stats.VideoNotes).Error; err != nil {
 		return nil, err
 	}
 

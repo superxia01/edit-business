@@ -1,9 +1,13 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/keenchase/edit-business/internal/model"
 	"github.com/keenchase/edit-business/internal/repository"
 )
+
+var ErrNoteNotFound = errors.New("note not found")
 
 // NoteService 笔记服务
 type NoteService struct {
@@ -21,21 +25,22 @@ func NewNoteService(noteRepo *repository.NoteRepository, settingsService *UserSe
 
 // CreateNoteRequest 创建笔记请求
 type CreateNoteRequest struct {
-	URL              string            `json:"url" binding:"required"`
-	Title            string            `json:"title"`
-	Author           string            `json:"author"`
-	Content          string            `json:"content"`
-	Tags             []string          `json:"tags"`
-	ImageURLs        []string          `json:"imageUrls"`
-	VideoURL         *string           `json:"videoUrl,omitempty"`
-	NoteType         string            `json:"noteType"`
-	CoverImageURL    string            `json:"coverImageUrl"`
-	Likes            int32             `json:"likes"`
-	Collects         int32             `json:"collects"`
-	Comments         int32             `json:"comments"`
-	PublishDate      int64             `json:"publishDate"`
-	Source           string            `json:"source"` // 'single' or 'batch'
-	CaptureTimestamp int64             `json:"captureTimestamp" binding:"required"`
+	URL              string   `json:"url" binding:"required"`
+	Title            string   `json:"title"`
+	Author           string   `json:"author"`
+	Content          string   `json:"content"`
+	Tags             []string `json:"tags"`
+	ImageURLs        []string `json:"imageUrls"`
+	Image            string   `json:"image"` // 批量接口可能只传单张封面
+	VideoURL         *string  `json:"videoUrl,omitempty"`
+	NoteType         string   `json:"noteType"`
+	CoverImageURL    string   `json:"coverImageUrl"`
+	Likes            int32    `json:"likes"`
+	Collects         int32    `json:"collects"`
+	Comments         int32    `json:"comments"`
+	PublishDate      int64    `json:"publishDate"`
+	Source           string   `json:"source"` // 'single' or 'batch'
+	CaptureTimestamp int64    `json:"captureTimestamp" binding:"required"`
 }
 
 // ListNotesRequest 列表查询请求
@@ -58,6 +63,15 @@ type ListNotesResponse struct {
 
 // Create 创建或更新笔记（智能 Upsert）
 func (s *NoteService) Create(authCenterUserID string, req *CreateNoteRequest) (*model.Note, error) {
+	// 检查用户是否开启了收藏功能
+	enabled, err := s.settingsService.IsCollectionEnabled(authCenterUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return nil, ErrCollectionDisabled
+	}
+
 	// Get user ID from auth center user ID
 	user, err := s.settingsService.GetUserByAuthCenterUserID(authCenterUserID)
 	if err != nil {
@@ -75,6 +89,16 @@ func (s *NoteService) Create(authCenterUserID string, req *CreateNoteRequest) (*
 		}
 	}
 
+	// 处理图片：批量接口可能只传 image，单篇传 imageUrls
+	imageURLs := req.ImageURLs
+	if len(imageURLs) == 0 && req.Image != "" {
+		imageURLs = []string{req.Image}
+	}
+	coverImageURL := req.CoverImageURL
+	if coverImageURL == "" && len(imageURLs) > 0 {
+		coverImageURL = imageURLs[0]
+	}
+
 	note := &model.Note{
 		UserID:           user.ID,
 		URL:              req.URL,
@@ -82,10 +106,10 @@ func (s *NoteService) Create(authCenterUserID string, req *CreateNoteRequest) (*
 		Author:           req.Author,
 		Content:          req.Content,
 		Tags:             req.Tags,
-		ImageURLs:        req.ImageURLs,
+		ImageURLs:        imageURLs,
 		VideoURL:         req.VideoURL,
 		NoteType:         req.NoteType,
-		CoverImageURL:    req.CoverImageURL,
+		CoverImageURL:    coverImageURL,
 		Likes:            req.Likes,
 		Collects:         req.Collects,
 		Comments:         req.Comments,
@@ -103,15 +127,30 @@ func (s *NoteService) Create(authCenterUserID string, req *CreateNoteRequest) (*
 	return result, nil
 }
 
-// GetByID 根据 ID 获取笔记
-func (s *NoteService) GetByID(id string) (*model.Note, error) {
-	return s.noteRepo.GetByID(id)
+// GetByID 根据 ID 获取笔记（校验归属，防止越权访问）
+func (s *NoteService) GetByID(authCenterUserID, id string) (*model.Note, error) {
+	note, err := s.noteRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	user, err := s.settingsService.GetUserByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return nil, err
+	}
+	if note.UserID != user.ID {
+		return nil, ErrNoteNotFound // 不属于当前用户，按未找到处理
+	}
+	return note, nil
 }
 
-// List 获取笔记列表
-func (s *NoteService) List(req *ListNotesRequest) (*ListNotesResponse, error) {
-	// Debug log
-	println("DEBUG: ListNotesRequest - Source:", req.Source, "Author:", req.Author, "Tags:", req.Tags, "Page:", req.Page, "Size:", req.Size)
+// List 获取笔记列表（按用户隔离）
+func (s *NoteService) List(authCenterUserID string, req *ListNotesRequest) (*ListNotesResponse, error) {
+	// 解析为本地用户 ID
+	user, err := s.settingsService.GetUserByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return nil, err
+	}
+	userID := user.ID
 
 	// 设置默认值
 	if req.Page < 1 {
@@ -125,36 +164,20 @@ func (s *NoteService) List(req *ListNotesRequest) (*ListNotesResponse, error) {
 
 	var notes []*model.Note
 	var total int64
-	var err error
 
-	// 根据查询条件选择不同的查询方法
-	// 优先级：source > author > tags > 默认
+	// 根据查询条件选择不同的查询方法（均按用户隔离）
 	if req.Source != "" {
-		println("DEBUG: Using ListBySource with source:", req.Source)
-		notes, total, err = s.noteRepo.ListBySource(req.Source, offset, req.Size)
+		notes, total, err = s.noteRepo.ListBySource(userID, req.Source, offset, req.Size)
 	} else if req.Author != "" {
-		notes, total, err = s.noteRepo.ListByAuthor(req.Author, offset, req.Size)
+		notes, total, err = s.noteRepo.ListByAuthor(userID, req.Author, offset, req.Size)
 	} else if len(req.Tags) > 0 {
-		notes, total, err = s.noteRepo.ListByTags(req.Tags, offset, req.Size)
+		notes, total, err = s.noteRepo.ListByTags(userID, req.Tags, offset, req.Size)
 	} else {
-		println("DEBUG: Using default List")
-		notes, total, err = s.noteRepo.List(offset, req.Size)
+		notes, total, err = s.noteRepo.List(userID, offset, req.Size)
 	}
 
 	if err != nil {
 		return nil, err
-	}
-
-	// DEBUG: 打印第一条笔记的图片数据
-	if len(notes) > 0 {
-		firstNote := notes[0]
-		println("DEBUG: 第一条笔记图片数据:")
-		println("  Title:", firstNote.Title)
-		println("  CoverImageURL:", firstNote.CoverImageURL)
-		println("  ImageURLs length:", len(firstNote.ImageURLs))
-		if len(firstNote.ImageURLs) > 0 {
-			println("  ImageURLs[0]:", firstNote.ImageURLs[0])
-		}
 	}
 
 	totalPages := int(total) / req.Size
@@ -177,6 +200,15 @@ func (s *NoteService) BatchCreate(authCenterUserID string, reqs []*CreateNoteReq
 		return nil
 	}
 
+	// 检查用户是否开启了收藏功能
+	enabled, err := s.settingsService.IsCollectionEnabled(authCenterUserID)
+	if err != nil {
+		return err
+	}
+	if !enabled {
+		return ErrCollectionDisabled
+	}
+
 	// Get user ID from auth center user ID
 	user, err := s.settingsService.GetUserByAuthCenterUserID(authCenterUserID)
 	if err != nil {
@@ -196,6 +228,16 @@ func (s *NoteService) BatchCreate(authCenterUserID string, reqs []*CreateNoteReq
 			}
 		}
 
+		// 处理图片：批量接口可能只传 image
+		imageURLs := req.ImageURLs
+		if len(imageURLs) == 0 && req.Image != "" {
+			imageURLs = []string{req.Image}
+		}
+		coverImageURL := req.CoverImageURL
+		if coverImageURL == "" && len(imageURLs) > 0 {
+			coverImageURL = imageURLs[0]
+		}
+
 		note := &model.Note{
 			UserID:           user.ID,
 			URL:              req.URL,
@@ -203,10 +245,10 @@ func (s *NoteService) BatchCreate(authCenterUserID string, reqs []*CreateNoteReq
 			Author:           req.Author,
 			Content:          req.Content,
 			Tags:             req.Tags,
-			ImageURLs:        req.ImageURLs,
+			ImageURLs:        imageURLs,
 			VideoURL:         req.VideoURL,
 			NoteType:         req.NoteType,
-			CoverImageURL:    req.CoverImageURL,
+			CoverImageURL:    coverImageURL,
 			Likes:            req.Likes,
 			Collects:         req.Collects,
 			Comments:         req.Comments,
@@ -225,12 +267,23 @@ func (s *NoteService) BatchCreate(authCenterUserID string, reqs []*CreateNoteReq
 	return nil
 }
 
-// Update 更新笔记
-func (s *NoteService) Update(note *model.Note) error {
+// Update 更新笔记（校验归属）
+func (s *NoteService) Update(authCenterUserID string, note *model.Note) error {
+	user, err := s.settingsService.GetUserByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return err
+	}
+	if note.UserID != user.ID {
+		return ErrNoteNotFound // 不属于当前用户
+	}
 	return s.noteRepo.Update(note)
 }
 
-// Delete 删除笔记
-func (s *NoteService) Delete(id string) error {
-	return s.noteRepo.Delete(id)
+// Delete 删除笔记（校验归属）
+func (s *NoteService) Delete(authCenterUserID, id string) error {
+	user, err := s.settingsService.GetUserByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return err
+	}
+	return s.noteRepo.Delete(user.ID, id)
 }

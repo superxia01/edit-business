@@ -15,7 +15,7 @@ func NewStatsHandler(statsService *service.StatsService) *StatsHandler {
 	return &StatsHandler{statsService: statsService}
 }
 
-// GetStats 获取统计数据
+// GetStats 获取统计数据（按当前用户隔离）
 // @Summary 获取统计数据
 // @Description 获取笔记和博主的统计数据
 // @Tags stats
@@ -24,7 +24,13 @@ func NewStatsHandler(statsService *service.StatsService) *StatsHandler {
 // @Success 200 {object} Response
 // @Router /api/v1/stats [get]
 func (h *StatsHandler) GetStats(c *gin.Context) {
-	stats, err := h.statsService.GetStats()
+	authCenterUserID, exists := c.Get("authCenterUserID")
+	if !exists {
+		c.JSON(401, gin.H{"success": false, "error": "Unauthorized"})
+		return
+	}
+
+	stats, err := h.statsService.GetStatsByAuthCenterUserID(authCenterUserID.(string))
 	if err != nil {
 		InternalError(c, err.Error())
 		return

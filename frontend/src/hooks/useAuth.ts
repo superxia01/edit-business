@@ -6,7 +6,9 @@ interface User {
   id: string
   authCenterUserId: string
   role: string
-  profile: Record<string, any>
+  nickname?: string
+  avatarUrl?: string
+  profile?: Record<string, any>
   createdAt: string
   updatedAt: string
 }

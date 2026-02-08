@@ -48,17 +48,17 @@ export function Navigation() {
             {user && (
               <>
                 <div className="flex items-center gap-2 text-sm">
-                  {user.profile?.headimgurl ? (
+                  {(user.avatarUrl || user.profile?.avatarUrl || user.profile?.headimgurl) ? (
                     <img
-                      src={user.profile.headimgurl}
-                      alt={user.profile.nickname || '用户'}
+                      src={user.avatarUrl || user.profile?.avatarUrl || user.profile?.headimgurl}
+                      alt={user.nickname || user.profile?.nickname || '用户'}
                       className="w-8 h-8 rounded-full"
                     />
                   ) : (
                     <User className="w-4 h-4" />
                   )}
                   <span className="text-muted-foreground">
-                    {user.profile?.nickname || user.authCenterUserId?.substring(0, 8)}
+                    {user.nickname || user.profile?.nickname || user.authCenterUserId?.substring(0, 8)}
                   </span>
                 </div>
                 <Button

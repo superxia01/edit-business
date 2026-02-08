@@ -29,7 +29,7 @@ func NewUserSettingsHandler(settingsService *service.UserSettingsService) *UserS
 // @Failure 500 {object} handler.Response
 // @Router /api/v1/user-settings [get]
 func (h *UserSettingsHandler) GetOrCreate(c *gin.Context) {
-	userID, exists := c.Get("userId")
+	authCenterUserID, exists := c.Get("authCenterUserID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, Response{
 			Code:    401,
@@ -38,7 +38,7 @@ func (h *UserSettingsHandler) GetOrCreate(c *gin.Context) {
 		return
 	}
 
-	settings, err := h.settingsService.GetOrCreateSettings(userID.(string))
+	settings, err := h.settingsService.GetOrCreateSettings(authCenterUserID.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Code:    500,
@@ -69,7 +69,7 @@ func (h *UserSettingsHandler) GetOrCreate(c *gin.Context) {
 // @Failure 500 {object} handler.Response
 // @Router /api/v1/user-settings/toggle-collection [post]
 func (h *UserSettingsHandler) ToggleCollectionEnabled(c *gin.Context) {
-	userID, exists := c.Get("userId")
+	authCenterUserID, exists := c.Get("authCenterUserID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, Response{
 			Code:    401,
@@ -91,7 +91,7 @@ func (h *UserSettingsHandler) ToggleCollectionEnabled(c *gin.Context) {
 		return
 	}
 
-	settings, err := h.settingsService.ToggleCollectionEnabled(userID.(string), req.Enabled)
+	settings, err := h.settingsService.ToggleCollectionEnabled(authCenterUserID.(string), req.Enabled)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Code:    500,

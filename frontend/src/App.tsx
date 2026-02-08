@@ -9,10 +9,12 @@ import { LoginPage } from '@/pages/LoginPage'
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage'
 import { Navigation } from '@/components/Navigation'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 function App() {
   return (
     <Router>
+      <TooltipProvider>
       <div className="min-h-screen bg-background">
         <Routes>
           {/* 公开路由 */}
@@ -39,6 +41,7 @@ function App() {
           />
         </Routes>
       </div>
+      </TooltipProvider>
     </Router>
   )
 }

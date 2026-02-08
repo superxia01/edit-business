@@ -50,9 +50,15 @@ func (s *UserSettingsService) IsCollectionEnabled(authCenterUserID string) (bool
 }
 
 // GetOrCreateSettings gets user settings or creates default
-func (s *UserSettingsService) GetOrCreateSettings(userID string) (*model.UserSettings, error) {
-	// 直接通过本地用户 ID 查询设置
-	settings, err := s.settingsRepo.GetByUserID(userID)
+func (s *UserSettingsService) GetOrCreateSettings(authCenterUserID string) (*model.UserSettings, error) {
+	// 通过 authCenterUserID 查找用户
+	user, err := s.userRepo.GetByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 使用本地 user ID 查询设置
+	settings, err := s.settingsRepo.GetByUserID(user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +67,15 @@ func (s *UserSettingsService) GetOrCreateSettings(userID string) (*model.UserSet
 }
 
 // ToggleCollectionEnabled toggles the collection enabled status
-func (s *UserSettingsService) ToggleCollectionEnabled(userID string, enabled bool) (*model.UserSettings, error) {
-	settings, err := s.settingsRepo.GetByUserID(userID)
+func (s *UserSettingsService) ToggleCollectionEnabled(authCenterUserID string, enabled bool) (*model.UserSettings, error) {
+	// 通过 authCenterUserID 查找用户
+	user, err := s.userRepo.GetByAuthCenterUserID(authCenterUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 使用本地 user ID 查询设置
+	settings, err := s.settingsRepo.GetByUserID(user.ID)
 	if err != nil {
 		return nil, err
 	}

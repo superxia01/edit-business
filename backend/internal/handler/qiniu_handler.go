@@ -44,22 +44,23 @@ func (h *QiniuHandler) GetUploadToken(c *gin.Context) {
 	keyPrefix := fmt.Sprintf("notes/%s", time.Now().Format("2006/01/02"))
 	deadline := time.Now().Add(24 * time.Hour).Unix()
 
-	// 构建上传策略
+	// 构建上传策略（允许上传到整个 bucket，通过 keyPrefix 建议路径）
 	putPolicy := fmt.Sprintf(
-		`{"scope":"%s:%s","deadline":%d}`,
+		`{"scope":"%s","deadline":%d}`,
 		bucket,
-		keyPrefix,
 		deadline,
 	)
 
-	// 签名
-	hasher := hmac.New(sha1.New, []byte(secretKey))
-	hasher.Write([]byte(putPolicy))
-	encodedPolicy := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
-	downloadToken := fmt.Sprintf("%s:%s", encodedPolicy, accessKey)
+	// 1. 先对上传策略进行 Base64 编码
+	encodedPutPolicy := base64.URLEncoding.EncodeToString([]byte(putPolicy))
 
-	// Base64编码token
-	uploadToken := base64.URLEncoding.EncodeToString([]byte(downloadToken))
+	// 2. 使用密钥对编码后的策略进行 HMAC-SHA1 签名
+	hasher := hmac.New(sha1.New, []byte(secretKey))
+	hasher.Write([]byte(encodedPutPolicy))
+	signature := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
+
+	// 3. 拼接生成上传凭证: accessKey:signature:encodedPutPolicy
+	uploadToken := fmt.Sprintf("%s:%s:%s", accessKey, signature, encodedPutPolicy)
 
 	// 返回上传配置
 	c.JSON(200, gin.H{

@@ -74,7 +74,7 @@ func (h *NoteHandler) Create(c *gin.Context) {
 	SuccessResponse(c, note)
 }
 
-// GetByID 根据 ID 获取笔记
+// GetByID 根据 ID 获取笔记（校验归属）
 // @Summary 获取笔记详情
 // @Description 根据 ID 获取笔记详情
 // @Tags notes
@@ -84,14 +84,20 @@ func (h *NoteHandler) Create(c *gin.Context) {
 // @Success 200 {object} Response
 // @Router /api/v1/notes/{id} [get]
 func (h *NoteHandler) GetByID(c *gin.Context) {
+	authCenterUserID, exists := c.Get("authCenterUserID")
+	if !exists {
+		c.JSON(401, Response{Code: 401, Message: "Unauthorized"})
+		return
+	}
+
 	id := c.Param("id")
 	if id == "" {
 		BadRequest(c, "id is required")
 		return
 	}
 
-	note, err := h.noteService.GetByID(id)
-	if err != nil {
+	note, err := h.noteService.GetByID(authCenterUserID.(string), id)
+	if err != nil || note == nil {
 		NotFound(c, "note not found")
 		return
 	}
@@ -99,7 +105,7 @@ func (h *NoteHandler) GetByID(c *gin.Context) {
 	SuccessResponse(c, note)
 }
 
-// List 获取笔记列表
+// List 获取笔记列表（按当前用户隔离）
 // @Summary 获取笔记列表
 // @Description 分页获取笔记列表，支持按作者、标签筛选
 // @Tags notes
@@ -112,30 +118,28 @@ func (h *NoteHandler) GetByID(c *gin.Context) {
 // @Success 200 {object} Response
 // @Router /api/v1/notes [get]
 func (h *NoteHandler) List(c *gin.Context) {
-	var req service.ListNotesRequest
+	authCenterUserID, exists := c.Get("authCenterUserID")
+	if !exists {
+		c.JSON(401, Response{Code: 401, Message: "Unauthorized"})
+		return
+	}
 
-	// 解析分页参数
+	var req service.ListNotesRequest
 	if pageStr := c.Query("page"); pageStr != "" {
-		page, err := strconv.Atoi(pageStr)
-		if err == nil {
+		if page, err := strconv.Atoi(pageStr); err == nil {
 			req.Page = page
 		}
 	}
-
 	if sizeStr := c.Query("size"); sizeStr != "" {
-		size, err := strconv.Atoi(sizeStr)
-		if err == nil {
+		if size, err := strconv.Atoi(sizeStr); err == nil {
 			req.Size = size
 		}
 	}
-
-	// 解析筛选参数
 	req.Author = c.Query("author")
 	req.Tags = c.QueryArray("tags")
 	req.Source = c.Query("source")
 
-	// 调用服务层
-	result, err := h.noteService.List(&req)
+	result, err := h.noteService.List(authCenterUserID.(string), &req)
 	if err != nil {
 		InternalError(c, err.Error())
 		return
@@ -204,7 +208,7 @@ func (h *NoteHandler) BatchCreate(c *gin.Context) {
 	})
 }
 
-// Update 更新笔记
+// Update 更新笔记（校验归属）
 // @Summary 更新笔记
 // @Description 更新笔记信息
 // @Tags notes
@@ -215,6 +219,12 @@ func (h *NoteHandler) BatchCreate(c *gin.Context) {
 // @Success 200 {object} Response
 // @Router /api/v1/notes/{id} [put]
 func (h *NoteHandler) Update(c *gin.Context) {
+	authCenterUserID, exists := c.Get("authCenterUserID")
+	if !exists {
+		c.JSON(401, Response{Code: 401, Message: "Unauthorized"})
+		return
+	}
+
 	id := c.Param("id")
 	if id == "" {
 		BadRequest(c, "id is required")
@@ -227,18 +237,18 @@ func (h *NoteHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// 获取现有笔记
-	note, err := h.noteService.GetByID(id)
-	if err != nil {
+	note, err := h.noteService.GetByID(authCenterUserID.(string), id)
+	if err != nil || note == nil {
 		NotFound(c, "note not found")
 		return
 	}
 
-	// 更新字段（这里简化处理，实际应该根据 req 更新对应字段）
-	// 注意：GORM 的 Save 方法会更新所有字段
-
-	err = h.noteService.Update(note)
+	err = h.noteService.Update(authCenterUserID.(string), note)
 	if err != nil {
+		if err == service.ErrNoteNotFound {
+			NotFound(c, "note not found")
+			return
+		}
 		InternalError(c, err.Error())
 		return
 	}
@@ -246,7 +256,7 @@ func (h *NoteHandler) Update(c *gin.Context) {
 	SuccessResponse(c, note)
 }
 
-// Delete 删除笔记
+// Delete 删除笔记（校验归属）
 // @Summary 删除笔记
 // @Description 根据 ID 删除笔记
 // @Tags notes
@@ -256,13 +266,19 @@ func (h *NoteHandler) Update(c *gin.Context) {
 // @Success 200 {object} Response
 // @Router /api/v1/notes/{id} [delete]
 func (h *NoteHandler) Delete(c *gin.Context) {
+	authCenterUserID, exists := c.Get("authCenterUserID")
+	if !exists {
+		c.JSON(401, Response{Code: 401, Message: "Unauthorized"})
+		return
+	}
+
 	id := c.Param("id")
 	if id == "" {
 		BadRequest(c, "id is required")
 		return
 	}
 
-	err := h.noteService.Delete(id)
+	err := h.noteService.Delete(authCenterUserID.(string), id)
 	if err != nil {
 		InternalError(c, err.Error())
 		return

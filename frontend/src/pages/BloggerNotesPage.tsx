@@ -16,6 +16,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 
 export function BloggerNotesPage() {
   const [notes, setNotes] = useState<Note[]>([])
@@ -85,6 +92,118 @@ export function BloggerNotesPage() {
           {row.original.title || '无标题'}
         </div>
       ),
+    },
+    {
+      accessorKey: 'coverImage',
+      header: '封面图',
+      cell: ({ row }) => {
+        const hasImages = row.original.imageUrls && row.original.imageUrls.length > 0
+
+        if (hasImages) {
+          const coverImageUrl = row.original.coverImageUrl || row.original.imageUrls[0]
+          // 七牛云图片处理：添加缩略图参数
+          const thumbnailUrl = coverImageUrl.includes('cdn.crazyaigc.com')
+            ? `${coverImageUrl}?imageView2/2/w/100/h/100`
+            : coverImageUrl
+
+          return (
+            <a
+              href={coverImageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block"
+              title="点击查看大图"
+            >
+              <img
+                src={thumbnailUrl}
+                alt="封面图"
+                className="w-16 h-16 object-cover rounded border border-gray-200 hover:border-blue-500 transition-colors"
+                loading="lazy"
+              />
+            </a>
+          )
+        }
+
+        return <span className="text-muted-foreground">-</span>
+      },
+    },
+    {
+      accessorKey: 'innerImages',
+      header: '内页图',
+      cell: ({ row }) => {
+        if (row.original.videoUrl) {
+          return <span className="text-muted-foreground">-</span>
+        }
+
+        const imageUrls = row.original.imageUrls || []
+        const coverImageUrl = row.original.coverImageUrl || (imageUrls.length > 0 ? imageUrls[0] : '')
+        const innerImages = imageUrls.filter(url => url !== coverImageUrl)
+
+        if (innerImages.length === 0) {
+          return <span className="text-muted-foreground">-</span>
+        }
+
+        return (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                {innerImages.length} 张
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>内页图片（共 {innerImages.length} 张）</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {innerImages.map((url, idx) => {
+                  const thumbUrl = url.includes('cdn.crazyaigc.com')
+                    ? `${url}?imageView2/2/w/200/h/200`
+                    : url
+                  return (
+                    <a
+                      key={idx}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <img
+                        src={thumbUrl}
+                        alt={`内页图${idx + 1}`}
+                        className="w-full aspect-square object-cover rounded border hover:border-primary transition-colors"
+                        loading="lazy"
+                      />
+                    </a>
+                  )
+                })}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )
+      },
+    },
+    {
+      accessorKey: 'video',
+      header: '视频',
+      cell: ({ row }) => {
+        const videoUrl = row.original.videoUrl
+
+        if (!videoUrl) {
+          return <span className="text-muted-foreground">-</span>
+        }
+
+        return (
+          <a
+            href={videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+          >
+            <Video className="w-3 h-3" />
+            查看视频
+          </a>
+        )
+      },
     },
     {
       accessorKey: 'author',

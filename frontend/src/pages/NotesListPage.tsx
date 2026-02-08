@@ -17,6 +17,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 
 export function NotesListPage() {
   const [notes, setNotes] = useState<Note[]>([])
@@ -103,7 +110,7 @@ export function NotesListPage() {
       accessorKey: 'title',
       header: '标题',
       cell: ({ row }) => (
-        <div className="max-w-[300px] truncate" title={row.original.title}>
+        <div className="min-w-0 truncate" title={row.original.title || ''}>
           {row.original.title || '无标题'}
         </div>
       ),
@@ -112,17 +119,7 @@ export function NotesListPage() {
       accessorKey: 'coverImage',
       header: '封面图',
       cell: ({ row }) => {
-        const hasVideo = row.original.videoUrl
         const hasImages = row.original.imageUrls && row.original.imageUrls.length > 0
-
-        if (hasVideo) {
-          return (
-            <Badge variant="default" className="gap-1">
-              <Video className="w-3 h-3" />
-              视频笔记
-            </Badge>
-          )
-        }
 
         if (hasImages) {
           const coverImageUrl = row.original.coverImageUrl || row.original.imageUrls[0]
@@ -136,7 +133,7 @@ export function NotesListPage() {
               href={coverImageUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block"
+              className="inline-block flex-shrink-0"
               title="点击查看大图"
             >
               <img
@@ -156,10 +153,12 @@ export function NotesListPage() {
       accessorKey: 'innerImages',
       header: '内页图',
       cell: ({ row }) => {
+        if (row.original.videoUrl) {
+          return <span className="text-muted-foreground">-</span>
+        }
+
         const imageUrls = row.original.imageUrls || []
         const coverImageUrl = row.original.coverImageUrl || (imageUrls.length > 0 ? imageUrls[0] : '')
-
-        // 过滤掉封面图，只显示内页图
         const innerImages = imageUrls.filter(url => url !== coverImageUrl)
 
         if (innerImages.length === 0) {
@@ -167,45 +166,52 @@ export function NotesListPage() {
         }
 
         return (
-          <div className="flex gap-1 flex-wrap max-w-[300px]">
-            {innerImages.slice(0, 6).map((url, index) => {
-              // 七牛云图片处理：添加缩略图参数
-              const thumbnailUrl = url.includes('cdn.crazyaigc.com')
-                ? `${url}?imageView2/2/w/80/h/80`
-                : url
-
-              return (
-                <a
-                  key={index}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="relative group"
-                  title="点击查看大图"
-                >
-                  <img
-                    src={thumbnailUrl}
-                    alt={`内页图${index + 1}`}
-                    className="w-10 h-10 object-cover rounded border border-gray-200 hover:border-blue-500 transition-colors"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded" />
-                </a>
-              )
-            })}
-            {innerImages.length > 6 && (
-              <div className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded border border-gray-200 text-xs text-gray-600">
-                +{innerImages.length - 6}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                {innerImages.length} 张
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>内页图片（共 {innerImages.length} 张）</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {innerImages.map((url, idx) => {
+                  const thumbUrl = url.includes('cdn.crazyaigc.com')
+                    ? `${url}?imageView2/2/w/200/h/200`
+                    : url
+                  return (
+                    <a
+                      key={idx}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <img
+                        src={thumbUrl}
+                        alt={`内页图${idx + 1}`}
+                        className="w-full aspect-square object-cover rounded border hover:border-primary transition-colors"
+                        loading="lazy"
+                      />
+                    </a>
+                  )
+                })}
               </div>
-            )}
-          </div>
+            </DialogContent>
+          </Dialog>
         )
       },
     },
     {
       accessorKey: 'author',
       header: '作者',
-      cell: ({ row }) => row.original.author || '-',
+      cell: ({ row }) => (
+        <div className="truncate max-w-[120px]" title={row.original.author || ''}>
+          {row.original.author || '-'}
+        </div>
+      ),
     },
     {
       accessorKey: 'noteType',
@@ -213,7 +219,7 @@ export function NotesListPage() {
       cell: ({ row }) => {
         const type = row.original.noteType
         return (
-          <Badge variant={type === '视频' ? 'default' : 'secondary'}>
+          <Badge variant={type === '视频' ? 'default' : 'secondary'} className="whitespace-nowrap">
             {type === '视频' ? (
               <Video className="w-3 h-3 mr-1" />
             ) : (
@@ -225,21 +231,66 @@ export function NotesListPage() {
       },
     },
     {
+      accessorKey: 'video',
+      header: '视频',
+      cell: ({ row }) => {
+        const videoUrl = row.original.videoUrl
+
+        if (!videoUrl) {
+          return <span className="text-muted-foreground">-</span>
+        }
+
+        return (
+          <a
+            href={videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-blue-600 hover:underline flex items-center gap-1 whitespace-nowrap"
+          >
+            <Video className="w-3 h-3" />
+            查看视频
+          </a>
+        )
+      },
+    },
+    {
       accessorKey: 'tags',
       header: '标签',
       cell: ({ row }) => {
-        const tags = row.original.tags || []
+        const rawTags = row.original.tags as unknown
+        const tags: string[] = Array.isArray(rawTags)
+          ? rawTags.map((t: unknown) => String(t ?? '')).filter(Boolean) as string[]
+          : typeof rawTags === 'string'
+            ? (rawTags as string).split(',').map((s: string) => s.trim()).filter(Boolean)
+            : []
+        if (tags.length === 0) return <span className="text-muted-foreground">-</span>
         return (
-          <div className="flex gap-1 flex-wrap max-w-[200px]">
-            {tags.slice(0, 3).map((tag, index) => (
-              <Badge key={index} variant="outline" className="text-xs">
-                {tag}
+          <div className="flex gap-1 flex-nowrap overflow-hidden items-center">
+            {tags.slice(0, 2).map((tag: string, index: number) => (
+              <Badge key={index} variant="outline" className="text-xs flex-shrink-0">
+                <span className="truncate max-w-[60px]">{tag}</span>
               </Badge>
             ))}
-            {tags.length > 3 && (
-              <Badge variant="outline" className="text-xs">
-                +{tags.length - 3}
-              </Badge>
+            {tags.length > 2 && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Badge variant="outline" className="text-xs flex-shrink-0 cursor-pointer hover:bg-accent">
+                    +{tags.length - 2}
+                  </Badge>
+                </DialogTrigger>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>全部标签（{tags.length} 个）</DialogTitle>
+                  </DialogHeader>
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag: string, index: number) => (
+                      <Badge key={index} variant="secondary">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </DialogContent>
+              </Dialog>
             )}
           </div>
         )
@@ -248,33 +299,33 @@ export function NotesListPage() {
     {
       accessorKey: 'likes',
       header: '点赞',
-      cell: ({ row }) => formatNumber(row.original.likes),
+      cell: ({ row }) => <span className="whitespace-nowrap">{formatNumber(row.original.likes)}</span>,
     },
     {
       accessorKey: 'collects',
       header: '收藏',
-      cell: ({ row }) => formatNumber(row.original.collects),
+      cell: ({ row }) => <span className="whitespace-nowrap">{formatNumber(row.original.collects)}</span>,
     },
     {
       accessorKey: 'comments',
       header: '评论',
-      cell: ({ row }) => formatNumber(row.original.comments),
+      cell: ({ row }) => <span className="whitespace-nowrap">{formatNumber(row.original.comments)}</span>,
     },
     {
       accessorKey: 'publishDate',
       header: '发布时间',
-      cell: ({ row }) => formatDate(row.original.publishDate),
+      cell: ({ row }) => <span className="whitespace-nowrap">{formatDate(row.original.publishDate)}</span>,
     },
     {
       accessorKey: 'captureTimestamp',
       header: '采集时间',
-      cell: ({ row }) => formatDate(row.original.captureTimestamp),
+      cell: ({ row }) => <span className="whitespace-nowrap">{formatDate(row.original.captureTimestamp)}</span>,
     },
     {
       id: 'actions',
       header: '操作',
       cell: ({ row }) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           <Button variant="ghost" size="sm" asChild>
             <a
               href={row.original.url}
